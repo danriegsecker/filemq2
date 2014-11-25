@@ -1,12 +1,10 @@
 <class
     name = "fmq_server"
-    title = "FILEMQ server"
+    title = "FILEMQ Server"
     script = "zproto_server_c"
     protocol_class = "fmq_msg"
-    header = "../include"
     package_dir = "../include"
-    source_dir = "../src"
-    project_header = "filemq.h"
+    source_dir = "."
     >
 
     FileMQ protocol server
@@ -20,26 +18,50 @@
     By convention however we use uppercase for protocol events.
 
     <state name = "start" inherit = "defaults">
+        The server will remain in this state when a client connects
+        waiting for the client to initiate a conversation.
         <event name = "OHAI" next = "ready">
-            <action name = "send" message = "OHAI-OK" />
+            The server receives the initiation of the converstation
+            and responds if everything is OK.
+            <action name = "send" message = "OHAI OK" />
         </event>
     </state>
 
     <state name = "ready" inherit = "defaults">
+        This server now has a connected client we at this point need
+        at least one subscrition and NOM credit before any files
+        get dispatched.
         <event name = "ICANHAZ">
+            The server receives a subscription request from the
+            connected client and therefore stores that subscription
+            and responds if things are OK. This event does not move
+            the server to a new state.
             <action name = "store client subscription" />
             <action name = "send" message = "ICANHAZ-OK" />
         </event>
         <event name = "NOM" next = "dispatching">
+            The server receives a credit from the client and can now
+            move on to the dispatching state and send data.
             <action name = "store client credit" />
             <action name = "get next patch for client" />
         </event>
-        <event name = "dispatch" next = "dispatching">
-            <action name = "get next patch for client" />
+        <!-- HUGZ (essentially a ping) is always valid -->
+        <event name = "HUGZ">
+            <action name = "send" message = "HUGZ-OK" />
+        </event>
+        <!-- The client can terminate the connection at any time -->
+        <event name = "KTHXBAI">
+            <action name = "terminate" />
+        </event>
+        <!-- Client can restart connection at any time -->
+        <event name = "OHAI">
+            <action name = "send" message = "OHAI-OK" />
         </event>
     </state>
 
     <state name = "dispatching" inherit = "defaults">
+        The server now has client connection that has submitted a subscription
+        request and has given credit. The server can send data.
         <event name = "send chunk">
             <action name = "send" message = "CHEEZBURGER" />
             <action name = "get next patch for client" />
@@ -53,15 +75,11 @@
         </event>
         <event name = "no credit" next = "ready" />
         <event name = "finished" next = "ready" />
-    </state>
-
-    <state name = "defaults">
-        <!-- As specified in zproto, we will not heartbeat from the server
-        <event name = "heartbeat" />
-        -->
-        <!-- Client can restart connection at any time -->
-        <event name = "OHAI" next = "ready">
-            <action name = "send" message = "OHAI-OK" />
+        <event name = "NOM">
+            The server receives a credit from the client and can now
+            move on to the dispatching state and send data.
+            <action name = "store client credit" />
+            <action name = "get next patch for client" />
         </event>
         <!-- HUGZ (essentially a ping) is always valid -->
         <event name = "HUGZ">
@@ -71,6 +89,13 @@
         <event name = "KTHXBAI">
             <action name = "terminate" />
         </event>
+        <!-- Client can restart connection at any time -->
+        <event name = "OHAI" next = "ready">
+            <action name = "send" message = "OHAI-OK" />
+        </event>
+    </state>
+
+    <state name = "defaults">
         <!-- All other protocol messages are invalide -->
         <event name = "*">
             <action name = "send" message = "RTFM" />

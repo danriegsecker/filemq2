@@ -43,7 +43,7 @@
         <field name = "version" type = "number" size = "2" value = "FMQ_MSG_VERSION">Protocol version 2</field>
     </message>
 
-    <message name = "OHAI-OK" id = "4">
+    <message name = "OHAI OK" id = "4">
         Server grants the client access
     </message>
 
