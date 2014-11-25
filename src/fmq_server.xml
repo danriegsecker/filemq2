@@ -1,0 +1,85 @@
+<class
+    name = "fmq_server"
+    title = "FILEMQ server"
+    script = "zproto_server_c"
+    protocol_class = "fmq_msg"
+    header = "../include"
+    package_dir = "../include"
+    source_dir = "../src"
+    project_header = "filemq.h"
+    >
+
+    FileMQ protocol server
+
+    <!-- As specified by zproject our license is in the main dir. -->
+    <include filename = "../license.xml" />
+
+    <!-- State machine for a client connection -->
+    
+    Names of states, events, and actions are case insensitive.
+    By convention however we use uppercase for protocol events.
+
+    <state name = "start" inherit = "defaults">
+        <event name = "OHAI" next = "ready">
+            <action name = "send" message = "OHAI-OK" />
+        </event>
+    </state>
+
+    <state name = "ready" inherit = "defaults">
+        <event name = "ICANHAZ">
+            <action name = "store client subscription" />
+            <action name = "send" message = "ICANHAZ-OK" />
+        </event>
+        <event name = "NOM" next = "dispatching">
+            <action name = "store client credit" />
+            <action name = "get next patch for client" />
+        </event>
+        <event name = "dispatch" next = "dispatching">
+            <action name = "get next patch for client" />
+        </event>
+    </state>
+
+    <state name = "dispatching" inherit = "defaults">
+        <event name = "send chunk">
+            <action name = "send" message = "CHEEZBURGER" />
+            <action name = "get next patch for client" />
+        </event>
+        <event name = "send delete">
+            <action name = "send" message = "CHEEZBURGER" />
+            <action name = "get next patch for client" />
+        </event>
+        <event name = "next patch">
+            <action name = "get next patch for client" />
+        </event>
+        <event name = "no credit" next = "ready" />
+        <event name = "finished" next = "ready" />
+    </state>
+
+    <state name = "defaults">
+        <!-- As specified in zproto, we will not heartbeat from the server
+        <event name = "heartbeat" />
+        -->
+        <!-- Client can restart connection at any time -->
+        <event name = "OHAI" next = "ready">
+            <action name = "send" message = "OHAI-OK" />
+        </event>
+        <!-- HUGZ (essentially a ping) is always valid -->
+        <event name = "HUGZ">
+            <action name = "send" message = "HUGZ-OK" />
+        </event>
+        <!-- The client can terminate the connection at any time -->
+        <event name = "KTHXBAI">
+            <action name = "terminate" />
+        </event>
+        <!-- All other protocol messages are invalide -->
+        <event name = "*">
+            <action name = "send" message = "RTFM" />
+            <action name = "terminate" />
+        </event>
+        <!-- This built-in event hits on a connection timeout -->
+        <event name = "expired">
+            <action name = "terminate" />
+        </event>
+    </state>
+
+</class>

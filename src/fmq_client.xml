@@ -1,0 +1,105 @@
+<class
+    name = "fmq_client"
+    title = "a FILEMQ client"
+    script = "zproto_client_c"
+    protocol_class = "fmq_msg"
+    header = "../include"
+    source_dir = "../src"
+    project_header = "filemq.h"
+    >
+
+    This is the FILEMQ/1.0 client protocol handler
+    
+    <!-- As layed out by zproject, the license is in the main dir -->
+    <include filename = "../license.xml" />
+
+    <!-- State machine for a client connection -->
+    
+    Names of states, events, and actions are case insensitive.
+    By convention however we use uppercase for protocol events.
+
+    <state name = "start" inherit = "defaults">
+        <event name = "initialize" next = "requesting access">
+            <action name = "send" message = "OHAI" />
+        </event>
+    </state>
+
+    <state name = "requesting access" inherit = "defaults">
+        <event name = "OHAI-OK" next = "subscribing">
+            <action name = "connected to server" />
+            <action name = "get first subscription" />
+        </event>
+    </state>
+
+    <state name = "subscribing" inherit = "defaults">
+        <event name = "ok" next = "subscribing">
+            <action name = "format icanhaz command" />
+            <action name = "send" message = "ICANHAZ" />
+            <action name = "get next subscription" />
+        </event>
+        <event name = "finished" next = "ready">
+            <action name = "refill credit as needed" />
+        </event>
+    </state>
+
+    <state name = "ready" inherit = "defaults">
+        <event name = "CHEEZBURGER">
+            <action name = "process the patch" />
+            <action name = "refill credit as needed" />
+        </event>
+        <event name = "HUGZ">
+            <action name = "send" message = "HUGZ-OK" />
+        </event>
+        <event name = "send credit">
+            <action name = "send" message = "NOM" />
+        </event>
+        <event name = "ICANHAZ-OK" />
+    </state>
+
+    <state name = "defaults">
+        <event name = "SRSLY">
+            <action name = "log access denied" />
+            <action name = "terminate" />
+        </event>
+        <event name = "RTFM">
+            <action name = "log invalid message" />
+            <action name = "terminate" />
+        </event>
+        <event name = "*">
+            <action name = "log protocol error" />
+            <!-- <action name = "terminate" /> -->
+        </event>
+        <!-- This built-in event hits on a connection timeout -->
+        <event name = "timeout">
+            <action name = "terminate" />
+        </event>
+    </state>
+
+    <!-- API methods -->
+
+    <!-- Must happen before any connects -->
+    <method name = "subscribe" return = "status">
+        <argument name = "path" type = "string" />
+        <accept reply = "SUCCESS" />
+        <accept reply = "FAILURE" />
+    </method>
+
+    <method name = "set inbox" return = "status">
+        <argument name = "path" type = "string" />
+        <accept reply = "SUCCESS" />
+        <accept reply = "FAILURE" />
+    </method>
+
+    <method name = "set resync" return = "status">
+        <argument name = "enabled" type = "number" />
+        <accept reply = "SUCCESS" />
+        <accept reply = "FAILURE" />
+    </method>
+
+    <method name = "connect" return = "status">
+        <argument name = "endopint" type = "string" />
+        <accept reply = "SUCCESS" />
+        <accept reply = "FAILURE" />
+    </method>
+
+</class>
