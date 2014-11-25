@@ -27,3 +27,25 @@
 *.i*86
 *.x86_64
 *.hex
+
+# Additionals
+ 34 src/.deps/
+ 35 Makefile
+ 36 Makefile.in
+ 37 aclocal.m4
+ 38 autom4te.cache/
+ 39 config.log
+ 40 config.status
+ 41 config/
+ 42 configure
+ 43 doc/Makefile
+ 44 doc/Makefile.in
+ 45 libtool
+ 46 src/.libs/
+ 47 src/Makefile
+ 48 src/Makefile.in
+ 49 src/platform.h
+ 50 src/platform.h.in
+ 51 src/stamp-h1
+ 52 *.swp
+ 53 *.dirstamp
