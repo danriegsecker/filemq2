@@ -428,21 +428,21 @@ client_terminate (client_t *self)
 static void
 store_client_subscription (client_t *self)
 {
-    //  Find mount point with longest match to subscription         
-    const char *path = fmq_msg_path (self->message);              
-                                                                    
-    mount_t *check = (mount_t *) zlist_first (self->server->mounts);        
-    mount_t *mount = check;                                         
-    while (check) {                                                 
-        //  If check->alias is prefix of path and alias is          
-        //  longer than current mount then we have a new mount      
+    //  Find mount point with longest match to subscription
+    const char *path = fmq_msg_path (self->message);
+
+    mount_t *check = (mount_t *) zlist_first (self->server->mounts);
+    mount_t *mount = check;
+    while (check) {
+        //  If check->alias is prefix of path and alias is
+        //  longer than current mount then we have a new mount
         if (strncmp (path, check->alias, strlen (check->alias)) == 0
-        &&  strlen (check->alias) > strlen (mount->alias))          
-            mount = check;                                          
-        check = (mount_t *) zlist_next (self->server->mounts);              
-    }                                                               
-    //  If subscription matches nothing, discard it                 
-    if (mount)                                                      
+        &&  strlen (check->alias) > strlen (mount->alias))
+            mount = check;
+        check = (mount_t *) zlist_next (self->server->mounts);
+    }
+    //  If subscription matches nothing, discard it
+    if (mount)
         mount_sub_store (mount, self, self->message);
 }
 
