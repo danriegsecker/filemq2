@@ -28,7 +28,7 @@
     </state>
 
     <state name = "ready" inherit = "defaults">
-        This server now has a connected client we at this point need
+        The server now has a connected client we at this point need
         at least one subscrition and NOM credit before any files
         get dispatched.
         <event name = "ICANHAZ">
@@ -43,6 +43,11 @@
             The server receives a credit from the client and can now
             move on to the dispatching state and send data.
             <action name = "store client credit" />
+            <action name = "get next patch for client" />
+        </event>
+        <event name = "dispatch" next = "dispatching">
+            Internal event for when a subscribed directory has a change
+            detected.
             <action name = "get next patch for client" />
         </event>
         <!-- HUGZ (essentially a ping) is always valid -->
