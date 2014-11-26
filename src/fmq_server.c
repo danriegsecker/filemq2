@@ -285,6 +285,7 @@ mount_sub_store (mount_t *self, client_t *client, fmq_msg_t *request)
     zlist_append (self->subs, sub);
 
     //  If client requested resync, send full mount contents now
+    /*
     if (fmq_msg_options_number (client->message, "RESYNC", 0) == 1) {
         zlist_t *patches = zdir_resync (self->dir, self->alias);
         while (zlist_size (patches)) {
@@ -294,6 +295,7 @@ mount_sub_store (mount_t *self, client_t *client, fmq_msg_t *request)
         }
         zlist_destroy (&patches);
     }
+    */
 }
 
 
