@@ -46,7 +46,7 @@ struct _server_t {
     zconfig_t *config;          //  Current loaded configuration
     
     //  TODO: Add any properties you need here
-    zlist_t *mounts             //  Mount points
+    zlist_t *mounts;            //  Mount points
 };
 
 //  ---------------------------------------------------------------------------
@@ -98,8 +98,9 @@ sub_new (client_t *client, const char *path, zhash_t *cache)
     while (cache_item) {
         char *key = (char *) zhash_cursor (self->cache);
         if (*key != '/') {
-            char *new_key = malloc (strlen (self->path) + strlen (key) + 2);
-            snprintf (new_key, "%s", key);
+            size_t new_key_len = strlen (self->path) + strlen (key) + 2;
+            char *new_key = (char *) calloc (new_key_len, sizeof (char));
+            snprintf (new_key, new_key_len, "%s", key);
             zhash_rename (self->cache, key, new_key);
             free (new_key);
         }
@@ -284,7 +285,7 @@ mount_sub_store (mount_t *self, client_t *client, fmq_msg_t *request)
     zlist_append (self->subs, sub);
 
     //  If client requested resync, send full mount contents now
-    if (fmq_msg_options_number (client->request, "RESYNC", 0) == 1) {
+    if (fmq_msg_options_number (client->message, "RESYNC", 0) == 1) {
         zlist_t *patches = zdir_resync (self->dir, self->alias);
         while (zlist_size (patches)) {
             zdir_patch_t *patch = (zdir_patch_t *) zlist_pop (patches);
@@ -341,6 +342,9 @@ server_initialize (server_t *self)
     //  Construct properties here
     zsys_notice ("starting filemq service");
     self->mounts = zlist_new ();
+    //  Register with the engine a function that will be called
+    //  every second by the engine.
+    engine_set_monitor (self, 1000, monitor_the_server);
     return 0;
 }
 
@@ -400,16 +404,18 @@ static void
 client_terminate (client_t *self)
 {
     //  Destroy properties here
-    mount_t *mount = (mount_t *) zlist_first (self->mounts);
+    mount_t *mount = (mount_t *) zlist_first (self->server->mounts);
     while (mount) {
         mount_sub_purge (mount, self);
-        mount = (mount_t *) zlist_next (self->mounts);
+        mount = (mount_t *) zlist_next (self->server->mounts);
     }
     while (zlist_size (self->patches)) {
         zdir_patch_t *patch = (zdir_patch_t *) zlist_pop (self->patches);
         zdir_patch_destroy (&patch);
     }
     zlist_destroy (&self->patches);
+    zdir_patch_destroy (&self->patch);
+    zfile_destroy (&self->file);
 }
 
 
@@ -470,7 +476,7 @@ get_next_patch_for_client (client_t *self)
     //  We can process a delete patch right away
     if (zdir_patch_op (self->patch) == patch_delete) {
         fmq_msg_set_sequence (self->message, self->sequence++);
-        fmq_msg_set_operation (self->reply, FMQ_MSG_FILE_DELETE);
+        fmq_msg_set_operation (self->message, FMQ_MSG_FILE_DELETE);
         engine_set_next_event (self, send_delete_event);
 
         //  No reliability in this version, assume patch delivered safely
@@ -509,7 +515,7 @@ get_next_patch_for_client (client_t *self)
                 zfile_destroy (&self->file);
                 zdir_patch_destroy (&self->patch);
             }
-            fmq_msg_set_chunk (self->reply, &chunk);
+            fmq_msg_set_chunk (self->message, &chunk);
         }
         else {
             zchunk_destroy (&chunk);

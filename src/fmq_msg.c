@@ -312,7 +312,7 @@ fmq_msg_recv (fmq_msg_t *self, zsock_t *input)
                 self->options = zhash_new ();
                 zhash_autofree (self->options);
                 while (hash_size--) {
-                    char key [256], *value;
+                    char key [256], *value = NULL;
                     GET_STRING (key);
                     GET_LONGSTR (value);
                     zhash_insert (self->options, key, value);
@@ -325,7 +325,7 @@ fmq_msg_recv (fmq_msg_t *self, zsock_t *input)
                 self->cache = zhash_new ();
                 zhash_autofree (self->cache);
                 while (hash_size--) {
-                    char key [256], *value;
+                    char key [256], *value = NULL;
                     GET_STRING (key);
                     GET_LONGSTR (value);
                     zhash_insert (self->cache, key, value);
@@ -354,7 +354,7 @@ fmq_msg_recv (fmq_msg_t *self, zsock_t *input)
                 self->headers = zhash_new ();
                 zhash_autofree (self->headers);
                 while (hash_size--) {
-                    char key [256], *value;
+                    char key [256], *value = NULL;
                     GET_STRING (key);
                     GET_LONGSTR (value);
                     zhash_insert (self->headers, key, value);
