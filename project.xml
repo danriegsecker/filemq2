@@ -59,6 +59,9 @@
     <class name = "someother" private = "1">Private class description</class>
     -->
 
+    <class name = "fmq_msg">FileMQ codec</class>
+    <class name = "fmq_server">FileMQ server</class>
+
     <!--
         Main programs built by the project
                  use private = "1" for internal tools
