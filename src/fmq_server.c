@@ -60,12 +60,12 @@ struct _client_t {
     fmq_msg_t *message;         //  Message in and out
 
     //  TODO: Add specific properties for your application
-    size_t credit;              //  Credit remaining
+    uint64_t credit;            //  Credit remaining
     zlist_t *patches;           //  Patches to send
     zdir_patch_t *patch;        //  Current patch
     zfile_t *file;              //  Current file we're sending
     off_t offset;               //  Offset of next read in file
-    int64_t sequence;           //  Sequence number for chunck
+    uint64_t sequence;          //  Sequence number for chunck
 };
 
 //  Include the generated server engine
@@ -91,8 +91,8 @@ sub_new (client_t *client, const char *path, zhash_t *cache)
     self->path = strdup (path);
     self->cache = zhash_dup (cache);
 
-//  Cached filenames may be local, in which case prefix them with
-//  the subscription path so we can do a consistent match.
+    //  Cached filenames may be local, in which case prefix them with
+    //  the subscription path so we can do a consistent match.
 
     sub_t *cache_item = (sub_t *) zhash_first (self->cache);
     while (cache_item) {
@@ -100,7 +100,8 @@ sub_new (client_t *client, const char *path, zhash_t *cache)
         if (*key != '/') {
             size_t new_key_len = strlen (self->path) + strlen (key) + 2;
             char *new_key = (char *) calloc (new_key_len, sizeof (char));
-            snprintf (new_key, new_key_len, "%s", key);
+            snprintf (new_key, new_key_len, "%s/%s", self->path, key);
+            zsys_debug ("new_key=%s", new_key);
             zhash_rename (self->cache, key, new_key);
             free (new_key);
         }
@@ -265,11 +266,15 @@ mount_sub_store (mount_t *self, client_t *client, fmq_msg_t *request)
     while (sub) {
         if (client == sub->client) {
             //  If old subscription is superset/same as new, ignore new
-            if (strncmp (path, sub->path, strlen (sub->path)) == 0)
+            if (strncmp (path, sub->path, strlen (sub->path)) == 0) {
+                zsys_debug ("new subscription already exists");
                 return;
+            }
             else
             //  If new subscription is superset of old one, remove old
             if (strncmp (sub->path, path, strlen (path)) == 0) {
+                zsys_debug ("superset, sub->path=%s, path=%s",
+                    sub->path, path);
                 zlist_remove (self->subs, sub);
                 sub_destroy (&sub);
                 sub = (sub_t *) zlist_first (self->subs);
@@ -436,14 +441,20 @@ store_client_subscription (client_t *self)
     while (check) {
         //  If check->alias is prefix of path and alias is
         //  longer than current mount then we have a new mount
+        zsys_debug ("path=%s, check->alias=%s, mount->alias=%s",
+            path, check->alias, mount->alias);
         if (strncmp (path, check->alias, strlen (check->alias)) == 0
-        &&  strlen (check->alias) > strlen (mount->alias))
+        &&  strlen (check->alias) > strlen (mount->alias)) {
+            zsys_debug ("prefix match, alias is longer");
             mount = check;
+        }
         check = (mount_t *) zlist_next (self->server->mounts);
     }
     //  If subscription matches nothing, discard it
-    if (mount)
+    if (mount) {
+        zsys_debug ("new subscription being stored");
         mount_sub_store (mount, self, self->message);
+    }
 }
 
 

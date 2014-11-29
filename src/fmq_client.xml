@@ -1,11 +1,10 @@
 <class
     name = "fmq_client"
-    title = "a FILEMQ client"
+    title = "FILEMQ Client"
     script = "zproto_client_c"
     protocol_class = "fmq_msg"
-    header = "../include"
-    source_dir = "../src"
-    project_header = "filemq.h"
+    package_dir = "../include"
+    source_dir = "."
     >
 
     This is the FILEMQ/1.0 client protocol handler
@@ -18,42 +17,43 @@
     Names of states, events, and actions are case insensitive.
     By convention however we use uppercase for protocol events.
 
-    <state name = "start" inherit = "defaults">
-        <event name = "initialize" next = "requesting access">
+    <state name = "start">
+        <event name = "constructor" next = "connecting">
+            <action name = "connect to server endpoint" />
+            <action name = "use connect timeout" />
             <action name = "send" message = "OHAI" />
         </event>
     </state>
 
-    <state name = "requesting access" inherit = "defaults">
-        <event name = "OHAI-OK" next = "subscribing">
+    <state name = "connecting" inherit = "defaults">
+        <event name = "OHAI OK" next = "connected">
             <action name = "connected to server" />
-            <action name = "get first subscription" />
         </event>
     </state>
 
-    <state name = "subscribing" inherit = "defaults">
-        <event name = "ok" next = "subscribing">
+    <state name = "connected" inherit = "defaults">
+        <event name = "subscribe" next = "subscribing">
             <action name = "format icanhaz command" />
             <action name = "send" message = "ICANHAZ" />
-            <action name = "get next subscription" />
         </event>
-        <event name = "finished" next = "ready">
-            <action name = "refill credit as needed" />
-        </event>
-    </state>
-
-    <state name = "ready" inherit = "defaults">
         <event name = "CHEEZBURGER">
             <action name = "process the patch" />
             <action name = "refill credit as needed" />
         </event>
-        <event name = "HUGZ">
-            <action name = "send" message = "HUGZ-OK" />
-        </event>
         <event name = "send credit">
             <action name = "send" message = "NOM" />
         </event>
-        <event name = "ICANHAZ-OK" />
+        <event name = "finished" next = "ready">
+            <action name = "refill credit as needed" />
+        </event>
+        <event name = "destructor">
+            <action name = "send" message = "KTHXBAI" />
+            <action name = "terminate" />
+        </event>
+    </state>
+
+    <state name = "subscribing" inherit = "defualts">
+        <event name = "ICANHAZ OK" next = "connected" />
     </state>
 
     <state name = "defaults">
@@ -77,29 +77,43 @@
 
     <!-- API methods -->
 
-    <!-- Must happen before any connects -->
+    <method name = "constructor" return = "status">
+    Connect to server endpoint, with specified timeout in msecs (zero means
+    wait forever). Constructor succeeds if connection is successful.
+        <field name = "endpoint" type = "string" />
+        <field name = "timeout" type = "number" size = "4" />
+        <accept reply = "SUCCESS" />
+        <accept reply = "FAILURE" />
+    </method>
+
+    <method name = "destructor" return = "status">
+    Disconnect from server.
+        <accept reply = "SUCCESS" />
+        <accept reply = "FAILURE" />
+    </method>
+
     <method name = "subscribe" return = "status">
-        <argument name = "path" type = "string" />
+    Subscribe to a directory on the server, directory specified by path.
+        <field name = "path" type = "string" />
         <accept reply = "SUCCESS" />
         <accept reply = "FAILURE" />
     </method>
 
     <method name = "set inbox" return = "status">
-        <argument name = "path" type = "string" />
+    Tell the api where to store files. This should be done before
+    subscribing to anything.
+        <field name = "path" type = "string" />
         <accept reply = "SUCCESS" />
         <accept reply = "FAILURE" />
     </method>
 
-    <method name = "set resync" return = "status">
-        <argument name = "enabled" type = "number" />
-        <accept reply = "SUCCESS" />
-        <accept reply = "FAILURE" />
-    </method>
+    <reply name = "SUCCESS">
+        <field name = "status" type = "number" size = "1" />
+    </reply>
 
-    <method name = "connect" return = "status">
-        <argument name = "endopint" type = "string" />
-        <accept reply = "SUCCESS" />
-        <accept reply = "FAILURE" />
-    </method>
+    <reply name = "FAILURE">
+        <field name = "status" type = "number" size = "1" />
+        <field name = "reason" type = "string" />
+    </reply>
 
 </class>

@@ -37,7 +37,7 @@
             and responds if things are OK. This event does not move
             the server to a new state.
             <action name = "store client subscription" />
-            <action name = "send" message = "ICANHAZ-OK" />
+            <action name = "send" message = "ICANHAZ OK" />
         </event>
         <event name = "NOM" next = "dispatching">
             The server receives a credit from the client and can now
@@ -52,7 +52,7 @@
         </event>
         <!-- HUGZ (essentially a ping) is always valid -->
         <event name = "HUGZ">
-            <action name = "send" message = "HUGZ-OK" />
+            <action name = "send" message = "HUGZ OK" />
         </event>
         <!-- The client can terminate the connection at any time -->
         <event name = "KTHXBAI">
