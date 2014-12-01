@@ -23,7 +23,7 @@
     name = "filemq"
     description = "An updated attempt at FileMQ."
     script = "zproject.gsl"
-    email = "1baldgeek@gmail.com"
+    email = "zeromq-dev@lists.zeromq.org"
     >
 
     <!--
@@ -45,6 +45,7 @@
         You need not specify subdependencies if they are implied.
     <use project = "zyre" min_major= "1" min_minor = "1" min_patch = "0" />
     -->
+    <use project = "czmq" />
 
     <!-- Header Files
          name := The name the header file to include without file ending
@@ -59,8 +60,9 @@
     <class name = "someother" private = "1">Private class description</class>
     -->
 
-    <class name = "fmq_msg">FileMQ codec</class>
-    <class name = "fmq_server">FileMQ server</class>
+    <class name = "fmq_msg">FileMQ Codec</class>
+    <class name = "fmq_server">FileMQ Server</class>
+    <class name = "fmq_client">FileMQ Client</class>
 
     <!--
         Main programs built by the project
