@@ -94,6 +94,7 @@ client_initialize (client_t *self)
     zsys_info ("client is initializing");
     self->subs = zlist_new ();
     self->credit = 0;
+    self->inbox = NULL;
     return 0;
 }
 
@@ -148,15 +149,6 @@ connected_to_server (client_t *self)
 {
     zsys_debug ("connected to server");
     zsock_send (self->cmdpipe, "si", "SUCCESS", 0);
-    size_t credit_to_send = 0;
-    while (self->credit < CREDIT_MINIMUM) {
-        credit_to_send += CREDIT_SLICE;
-        self->credit += CREDIT_SLICE;
-    }
-    if (credit_to_send) {
-        fmq_msg_set_credit (self->message, credit_to_send);
-        engine_set_next_event (self, send_credit_event);
-    }
 }
 
 
@@ -249,6 +241,22 @@ signal_server_not_present (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
+//  setup_inbox
+//
+
+static void
+setup_inbox (client_t *self)
+{
+    if (!self->inbox) {
+        self->inbox = strdup (self->args->path);
+        zsock_send (self->cmdpipe, "si", "SUCCESS", 0);
+    }
+    else
+        zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "inbox already set");
+}
+
+
+//  ---------------------------------------------------------------------------
 //  Selftest
 
 void
@@ -269,11 +277,11 @@ fmq_client_test (bool verbose)
 
 
 //  ---------------------------------------------------------------------------
-//  setup_inbox
+//  signal_subscribe_success
 //
 
 static void
-setup_inbox (client_t *self)
+signal_subscribe_success (client_t *self)
 {
 
 }

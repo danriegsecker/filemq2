@@ -7,7 +7,7 @@
     source_dir = "."
     >
 
-    This is the FILEMQ/1.0 client protocol handler
+    This is the FILEMQ/2.0 client protocol handler
     
     <!-- As layed out by zproject, the license is in the main dir -->
     <include filename = "../license.xml" />
@@ -40,30 +40,58 @@
 
     <state name = "connected" inherit = "defaults">
         <event name = "set inbox">
+            This event corresponds with the API method set inbox. This event
+            will leave the client in the connected state waiting for a valid
+            event.
             <action name = "setup inbox" />
         </event>
         <event name = "subscribe" next = "subscribing">
+            This event corresponds with the API method subscribe. When the
+            actions of this event finish the client will move to the
+            subscribing state.
             <action name = "format icanhaz command" />
             <action name = "send" message = "ICANHAZ" />
         </event>
-        <event name = "CHEEZBURGER">
-            <action name = "process the patch" />
-            <action name = "refill credit as needed" />
-        </event>
-        <event name = "send credit">
-            <action name = "send" message = "NOM" />
-        </event>
-        <event name = "finished">
-            <action name = "refill credit as needed" />
-        </event>
         <event name = "destructor">
+            This event corresponds with the API destructor. This will tell the
+            server we're leaving and then terminate.
             <action name = "send" message = "KTHXBAI" />
             <action name = "terminate" />
         </event>
     </state>
 
     <state name = "subscribing" inherit = "defaults">
-        <event name = "ICANHAZ OK" next = "connected" />
+        Wait for the server to respond to the subscription reuqest.
+        <event name = "ICANHAZ OK" next = "subscribed">
+            Subscription was successful, tell our user and move to the
+            subscribed state. A send credit will be triggered from this
+            action.
+            <action name = "signal subscribe success" />
+        </event>
+    </state>
+
+    <state name = "subscribed" inherit = "defaults">
+        In this state, we have our inbox and at least one subscription.
+        <event name = "send credit">
+            Send the credit.
+            <action name = "send" message = "NOM" />
+        </event>
+        <event name = "CHEEZBURGER">
+            Receive a portion of a file and make sure that the client has credit
+            with the server.
+            <action name = "process the patch" />
+            <action name = "refill credit as needed" />
+        </event>
+        <event name = "finished">
+            Finished receiving current changes. Make sure client has credit.
+            <action name = "refill credit as needed" />
+        </event>
+        <event name = "destructor">
+            This event corresponds with the API destructor. This will tell the
+            server we're leaving and then terminate.
+            <action name = "send" message = "KTHXBAI" />
+            <action name = "terminate" />
+        </event>
     </state>
 
     <state name = "defaults">
@@ -80,9 +108,10 @@
             <!-- <action name = "terminate" /> -->
         </event>
         <!-- This built-in event hits on a connection timeout -->
+        <!--
         <event name = "timeout">
             <action name = "terminate" />
-        </event>
+        </event> -->
     </state>
 
     <!-- API methods -->

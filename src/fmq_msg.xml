@@ -23,7 +23,7 @@
 
     https://github.com/imatix/gsl -->
 
-    This is the FILEMQ protocol version 1.0
+    This is the FILEMQ protocol version 2.0
 
     <!-- As layed out by zproject, the license is in the main dir -->
     <include filename = "../license.xml" />
