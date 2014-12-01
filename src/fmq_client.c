@@ -110,6 +110,8 @@ client_terminate (client_t *self)
         sub_destroy (&sub);
     }
     zlist_destroy (&self->subs);
+    if (self->inbox)
+        free (self->inbox);
 }
 
 
@@ -257,6 +259,26 @@ setup_inbox (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
+//  signal_subscribe_success
+//
+
+static void
+signal_subscribe_success (client_t *self)
+{
+    zsock_send (self->cmdpipe, "si", "SUCCESS", 0);
+    size_t credit_to_send = 0;
+    while (self->credit < CREDIT_MINIMUM) {
+        credit_to_send += CREDIT_SLICE;
+        self->credit += CREDIT_SLICE;
+    }
+    if (credit_to_send) {
+        fmq_msg_set_credit (self->message, credit_to_send);
+        engine_set_next_event (self, send_credit_event);
+    }
+}
+
+
+//  ---------------------------------------------------------------------------
 //  Selftest
 
 void
@@ -277,11 +299,11 @@ fmq_client_test (bool verbose)
 
 
 //  ---------------------------------------------------------------------------
-//  signal_subscribe_success
+//  subscribe_failed
 //
 
 static void
-signal_subscribe_success (client_t *self)
+subscribe_failed (client_t *self)
 {
 
 }

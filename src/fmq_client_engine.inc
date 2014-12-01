@@ -140,6 +140,8 @@ static void
 static void
     format_icanhaz_command (client_t *self);
 static void
+    subscribe_failed (client_t *self);
+static void
     signal_subscribe_success (client_t *self);
 static void
     process_the_patch (client_t *self);
@@ -508,6 +510,15 @@ s_client_execute (s_client_t *self, event_t event)
                         if (self->verbose)
                             zsys_debug ("fmq_client:            $ terminate");
                         self->terminated = true;
+                    }
+                }
+                else
+                if (self->event == error_event) {
+                    if (!self->exception) {
+                        //  subscribe failed
+                        if (self->verbose)
+                            zsys_debug ("fmq_client:            $ subscribe failed");
+                        subscribe_failed (&self->client);
                     }
                 }
                 else

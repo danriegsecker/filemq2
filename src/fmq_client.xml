@@ -58,6 +58,12 @@
             <action name = "send" message = "KTHXBAI" />
             <action name = "terminate" />
         </event>
+        <event name = "error">
+            In this state, error can be triggered from the subscribe event to
+            signal bad parameter from the "subscribe" API method. This is not
+            fatal, so stay in this state.
+            <action name = "subscribe failed" />
+        </event>
     </state>
 
     <state name = "subscribing" inherit = "defaults">
