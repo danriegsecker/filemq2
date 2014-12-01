@@ -155,7 +155,7 @@ connected_to_server (client_t *self)
     }
     if (credit_to_send) {
         fmq_msg_set_credit (self->message, credit_to_send);
-        engine_set_next_event (send_credit_event);
+        engine_set_next_event (self, send_credit_event);
     }
 }
 
@@ -197,7 +197,7 @@ refill_credit_as_needed (client_t *self)
     }
     if (credit_to_send) {
         fmq_msg_set_credit (self->message, credit_to_send);
-        engine_set_next_event (send_credit_event);
+        engine_set_next_event (self, send_credit_event);
     }
 }
 
@@ -209,7 +209,7 @@ refill_credit_as_needed (client_t *self)
 static void
 log_access_denied (client_t *self)
 {
-    zsys_warn ("access was denied");
+    zsys_warning ("access was denied");
 }
 
 

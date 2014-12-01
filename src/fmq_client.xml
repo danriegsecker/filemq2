@@ -39,6 +39,9 @@
     </state>
 
     <state name = "connected" inherit = "defaults">
+        <event name = "set inbox">
+            <action name = "setup inbox" />
+        </event>
         <event name = "subscribe" next = "subscribing">
             <action name = "format icanhaz command" />
             <action name = "send" message = "ICANHAZ" />
