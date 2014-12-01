@@ -38,15 +38,16 @@ typedef enum {
     error_event = 2,
     ohai_ok_event = 3,
     expired_event = 4,
-    subscribe_event = 5,
-    cheezburger_event = 6,
-    send_credit_event = 7,
-    finished_event = 8,
-    destructor_event = 9,
-    icanhaz_ok_event = 10,
-    srsly_event = 11,
-    rtfm_event = 12,
-    timeout_event = 13
+    set_inbox_event = 5,
+    subscribe_event = 6,
+    cheezburger_event = 7,
+    send_credit_event = 8,
+    finished_event = 9,
+    destructor_event = 10,
+    icanhaz_ok_event = 11,
+    srsly_event = 12,
+    rtfm_event = 13,
+    timeout_event = 14
 } event_t;
 
 //  Names for state machine logging and error reporting
@@ -67,6 +68,7 @@ s_event_name [] = {
     "error",
     "OHAI_OK",
     "expired",
+    "set_inbox",
     "subscribe",
     "CHEEZBURGER",
     "send_credit",
@@ -133,6 +135,8 @@ static void
     connected_to_server (client_t *self);
 static void
     signal_server_not_present (client_t *self);
+static void
+    setup_inbox (client_t *self);
 static void
     format_icanhaz_command (client_t *self);
 static void
@@ -467,6 +471,15 @@ s_client_execute (s_client_t *self, event_t event)
                 break;
 
             case connected_state:
+                if (self->event == set_inbox_event) {
+                    if (!self->exception) {
+                        //  setup inbox
+                        if (self->verbose)
+                            zsys_debug ("fmq_client:            $ setup inbox");
+                        setup_inbox (&self->client);
+                    }
+                }
+                else
                 if (self->event == subscribe_event) {
                     if (!self->exception) {
                         //  format icanhaz command

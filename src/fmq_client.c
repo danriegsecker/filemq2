@@ -266,3 +266,14 @@ fmq_client_test (bool verbose)
     //  @end
     printf ("OK\n");
 }
+
+
+//  ---------------------------------------------------------------------------
+//  setup_inbox
+//
+
+static void
+setup_inbox (client_t *self)
+{
+
+}

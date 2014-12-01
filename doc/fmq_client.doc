@@ -1,0 +1,60 @@
+#### fmq_client - FILEMQ Client
+
+Description of class for man page.
+
+Detailed discussion of the class, if any.
+
+This is the class interface:
+
+    //  Create a new fmq_client
+    //  Connect to server endpoint, with specified timeout in msecs (zero means wait    
+    //  forever). Constructor succeeds if connection is successful.                     
+    fmq_client_t *
+        fmq_client_new (const char *endpoint, int timeout);
+    
+    //  Destroy the fmq_client
+    void
+        fmq_client_destroy (fmq_client_t **self_p);
+    
+    //  Enable verbose logging of client activity
+    void
+        fmq_client_verbose (fmq_client_t *self);
+    
+    //  Return message pipe for asynchronous message I/O. In the high-volume case,
+    //  we send methods and get replies to the actor, in a synchronous manner, and
+    //  we send/recv high volume message data to a second pipe, the msgpipe. In
+    //  the low-volume case we can do everything over the actor pipe, if traffic
+    //  is never ambiguous.
+    zsock_t *
+        fmq_client_msgpipe (fmq_client_t *self);
+    
+    //  Subscribe to a directory on the server, directory specified by path.            
+    //  Returns >= 0 if successful, -1 if interrupted.
+    int
+        fmq_client_subscribe (fmq_client_t *self, const char *path);
+    
+    //  Tell the api where to store files. This should be done before subscribing to    
+    //  anything.                                                                       
+    //  Returns >= 0 if successful, -1 if interrupted.
+    int
+        fmq_client_set_inbox (fmq_client_t *self, const char *path);
+    
+    //  Return last received status
+    int 
+        fmq_client_status (fmq_client_t *self);
+    
+    //  Return last received reason
+    const char *
+        fmq_client_reason (fmq_client_t *self);
+    
+    //  Self test of this class
+    void
+        fmq_client_test (bool verbose);
+
+This is the class self test code:
+
+    zactor_t *client = zactor_new (fmq_client, NULL);
+    if (verbose)
+        zstr_send (client, "VERBOSE");
+    zactor_destroy (&client);
+
