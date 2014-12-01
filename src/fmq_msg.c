@@ -312,7 +312,7 @@ fmq_msg_recv (fmq_msg_t *self, zsock_t *input)
                 self->options = zhash_new ();
                 zhash_autofree (self->options);
                 while (hash_size--) {
-                    char key [256], *value = NULL;
+                    char key [256], *value;
                     GET_STRING (key);
                     GET_LONGSTR (value);
                     zhash_insert (self->options, key, value);
@@ -325,7 +325,7 @@ fmq_msg_recv (fmq_msg_t *self, zsock_t *input)
                 self->cache = zhash_new ();
                 zhash_autofree (self->cache);
                 while (hash_size--) {
-                    char key [256], *value = NULL;
+                    char key [256], *value;
                     GET_STRING (key);
                     GET_LONGSTR (value);
                     zhash_insert (self->cache, key, value);
@@ -354,7 +354,7 @@ fmq_msg_recv (fmq_msg_t *self, zsock_t *input)
                 self->headers = zhash_new ();
                 zhash_autofree (self->headers);
                 while (hash_size--) {
-                    char key [256], *value = NULL;
+                    char key [256], *value;
                     GET_STRING (key);
                     GET_LONGSTR (value);
                     zhash_insert (self->headers, key, value);
@@ -434,7 +434,7 @@ fmq_msg_send (fmq_msg_t *self, zsock_t *output)
                 self->options_bytes = 0;
                 char *item = (char *) zhash_first (self->options);
                 while (item) {
-                    self->options_bytes += 1 + strlen ( (const char *) zhash_cursor (self->options));
+                    self->options_bytes += 1 + strlen (zhash_cursor (self->options));
                     self->options_bytes += 4 + strlen (item);
                     item = (char *) zhash_next (self->options);
                 }
@@ -445,7 +445,7 @@ fmq_msg_send (fmq_msg_t *self, zsock_t *output)
                 self->cache_bytes = 0;
                 char *item = (char *) zhash_first (self->cache);
                 while (item) {
-                    self->cache_bytes += 1 + strlen ( (const char *) zhash_cursor (self->cache));
+                    self->cache_bytes += 1 + strlen (zhash_cursor (self->cache));
                     self->cache_bytes += 4 + strlen (item);
                     item = (char *) zhash_next (self->cache);
                 }
@@ -469,7 +469,7 @@ fmq_msg_send (fmq_msg_t *self, zsock_t *output)
                 self->headers_bytes = 0;
                 char *item = (char *) zhash_first (self->headers);
                 while (item) {
-                    self->headers_bytes += 1 + strlen ( (const char *) zhash_cursor (self->headers));
+                    self->headers_bytes += 1 + strlen (zhash_cursor (self->headers));
                     self->headers_bytes += 4 + strlen (item);
                     item = (char *) zhash_next (self->headers);
                 }
@@ -510,7 +510,7 @@ fmq_msg_send (fmq_msg_t *self, zsock_t *output)
                 PUT_NUMBER4 (zhash_size (self->options));
                 char *item = (char *) zhash_first (self->options);
                 while (item) {
-                    PUT_STRING ( (const char *) zhash_cursor (self->options));
+                    PUT_STRING (zhash_cursor (self->options));
                     PUT_LONGSTR (item);
                     item = (char *) zhash_next (self->options);
                 }
@@ -521,7 +521,7 @@ fmq_msg_send (fmq_msg_t *self, zsock_t *output)
                 PUT_NUMBER4 (zhash_size (self->cache));
                 char *item = (char *) zhash_first (self->cache);
                 while (item) {
-                    PUT_STRING ( (const char *) zhash_cursor (self->cache));
+                    PUT_STRING (zhash_cursor (self->cache));
                     PUT_LONGSTR (item);
                     item = (char *) zhash_next (self->cache);
                 }
@@ -549,7 +549,7 @@ fmq_msg_send (fmq_msg_t *self, zsock_t *output)
                 PUT_NUMBER4 (zhash_size (self->headers));
                 char *item = (char *) zhash_first (self->headers);
                 while (item) {
-                    PUT_STRING ( (const char *) zhash_cursor (self->headers));
+                    PUT_STRING (zhash_cursor (self->headers));
                     PUT_LONGSTR (item);
                     item = (char *) zhash_next (self->headers);
                 }
@@ -611,7 +611,7 @@ fmq_msg_print (fmq_msg_t *self)
             if (self->options) {
                 char *item = (char *) zhash_first (self->options);
                 while (item) {
-                    zsys_debug ("        %s=%s", (const char *) zhash_cursor (self->options), item);
+                    zsys_debug ("        %s=%s", zhash_cursor (self->options), item);
                     item = (char *) zhash_next (self->options);
                 }
             }
@@ -621,7 +621,7 @@ fmq_msg_print (fmq_msg_t *self)
             if (self->cache) {
                 char *item = (char *) zhash_first (self->cache);
                 while (item) {
-                    zsys_debug ("        %s=%s", (const char *) zhash_cursor (self->cache), item);
+                    zsys_debug ("        %s=%s", zhash_cursor (self->cache), item);
                     item = (char *) zhash_next (self->cache);
                 }
             }
@@ -653,7 +653,7 @@ fmq_msg_print (fmq_msg_t *self)
             if (self->headers) {
                 char *item = (char *) zhash_first (self->headers);
                 while (item) {
-                    zsys_debug ("        %s=%s", (const char *) zhash_cursor (self->headers), item);
+                    zsys_debug ("        %s=%s", zhash_cursor (self->headers), item);
                     item = (char *) zhash_next (self->headers);
                 }
             }
