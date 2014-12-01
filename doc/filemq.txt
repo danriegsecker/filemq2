@@ -1,0 +1,25 @@
+Name(7)
+=======
+
+
+NAME
+----
+filemq - An updated attempt at FileMQ.
+
+
+SYNOPSIS
+--------
+----
+#include <filemq.h>
+
+cc ['flags'] 'files' -lfilemq ['libraries']
+----
+
+
+DESCRIPTION
+-----------
+
+Classes
+~~~~~~~
+
+Something.
