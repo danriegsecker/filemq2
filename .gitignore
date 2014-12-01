@@ -21,6 +21,7 @@
 *.dylib
 
 # Executables
+filemq_selftest
 *.exe
 *.out
 *.app
@@ -28,8 +29,16 @@
 *.x86_64
 *.hex
 
-# Additionals
-src/.deps/
+# Man pages
+doc/*.1
+doc/*.3
+doc/*.7
+
+# autoconf files
+.deps
+.libs
+*.log
+*.trs
 Makefile
 Makefile.in
 aclocal.m4
@@ -38,15 +47,32 @@ config.log
 config.status
 config/
 configure
-doc/Makefile
-doc/Makefile.in
 libtool
-src/.libs/
-src/Makefile
-src/Makefile.in
 src/platform.h
 src/platform.h.in
+src/platform.h.in~
 src/stamp-h1
+src/test-suite.log
+src/.dirstamp
+
+# qt-android build results
+builds/qt-android/prefix
+
+# Android - generated directories
+src/app/bin/
+src/app/gen/
+src/app/obj/
+src/app/local.properties
+
+# Android -dependencies
+builds/android/libsodium
+builds/android/libzmq
+builds/android/czmq
+builds/android/e2fsprogs
+builds/android/zyre
+src/app/jni/output
+
+# Additionals
 *.swp
 *.dirstamp
 *.xml.swp
