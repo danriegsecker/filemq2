@@ -20,8 +20,7 @@
 */
 
 //  TODO: Change these to match your project's needs
-#include "../include/fmq_msg.h"
-#include "../include/fmq_client.h"
+#include "filemq_classes.h"
 
 //  Forward reference to method arguments structure
 typedef struct _client_args_t client_args_t;
@@ -50,6 +49,7 @@ typedef struct {
     zfile_t *file;              //  File we're currently writing
     char *inbox;                //  Path where files will be stored
     zlist_t *subs;              //  Our subscriptions
+    sub_t *sub;                 //  Subscription we're sending
 } client_t;
 
 //  Include the generated client engine
@@ -161,7 +161,34 @@ connected_to_server (client_t *self)
 static void
 format_icanhaz_command (client_t *self)
 {
+    if (!self->inbox) {
+        engine_set_exception (self, error_event);
+        zsys_error ("can't subscribe without inbox set");
+        return;
+    }
+    char *path = strdup (self->args->path);
+    if (*path != '/') {
+        engine_set_exception (self, error_event);
+        zsys_error ("unable to subscribe path %s, must start with /", path);
+        free (path);
+        return;
+    }
 
+    self->sub = (sub_t *) zlist_first (self->subs);
+    while (self->sub) {
+        if (streq (path, self->sub->path)) {
+            zsys_warning ("already subscribed to %s", path);
+            free (path);
+            return;
+        }
+        self->sub = (sub_t *) zlist_next (self->subs);
+    }
+    self->sub = sub_new (self, self->inbox, path);
+    zlist_append (self->subs, self->sub);
+    zsys_debug ("%s added to subscription list", path);
+    free (path);
+
+    fmq_msg_set_path (self->message, self->sub->path);
 }
 
 
@@ -172,7 +199,52 @@ format_icanhaz_command (client_t *self)
 static void
 process_the_patch (client_t *self)
 {
+    const char *filename = fmq_msg_filename (self->message);
+    const char *filename_orig = filename;
 
+    if (*filename != '/')
+        return;
+
+    sub_t *subscr = (sub_t *) zlist_first (self->subs);
+    while (subscr) {
+        if (!strncmp (filename, subscr->path, strlen (subscr->path))) {
+            filename += strlen (subscr->path);
+            break;
+        }
+    }
+    if ('/' == *filename) filename++;
+
+    if (fmq_msg_operation (self->message) == FMQ_MSG_FILE_CREATE) {
+        if (self->file = NULL) {
+            self->file = zfile_new (self->inbox, filename);
+            if (zfile_output (self->file)) {
+                //  File not writeable, skip patch
+                zfile_destroy (&self->file);
+                return;
+            }
+        }
+        //  Try to write, ignore errors in this version
+        zchunk_t *chunk = fmq_msg_chunk (self->message);
+        if (zchunk_size (chunk) > 0) {
+            zfile_write (self->file, chunk, fmq_msg_offset (self->message));
+            self->credit -= zchunk_size (chunk);
+        }
+        else {
+            //  Zero-sized chunk means end of file, so report back to caller
+            // TODO: communicate back to caller
+            zfile_destroy (&self->file);
+        }
+    }
+    else
+    if (fmq_msg_operation (self->message) == FMQ_MSG_FILE_DELETE) {
+        zsys_debug ("delete %s/%s", self->inbox, filename);
+        zfile_t *file = zfile_new (inbox, filename);
+        zfile_remove (file);
+        zfile_destroy (&file);
+
+        //  Report file deletion back to caller
+        //  TODO: notifiy caller
+    }
 }
 
 
@@ -279,6 +351,17 @@ signal_subscribe_success (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
+//  subscribe_failed
+//
+
+static void
+subscribe_failed (client_t *self)
+{
+    zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "subscription failed");
+}
+
+
+//  ---------------------------------------------------------------------------
 //  Selftest
 
 void
@@ -295,15 +378,4 @@ fmq_client_test (bool verbose)
     zactor_destroy (&client);
     //  @end
     printf ("OK\n");
-}
-
-
-//  ---------------------------------------------------------------------------
-//  subscribe_failed
-//
-
-static void
-subscribe_failed (client_t *self)
-{
-
 }
