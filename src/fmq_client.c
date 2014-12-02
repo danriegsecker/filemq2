@@ -200,7 +200,6 @@ static void
 process_the_patch (client_t *self)
 {
     const char *filename = fmq_msg_filename (self->message);
-    const char *filename_orig = filename;
 
     if (*filename != '/')
         return;
@@ -215,7 +214,7 @@ process_the_patch (client_t *self)
     if ('/' == *filename) filename++;
 
     if (fmq_msg_operation (self->message) == FMQ_MSG_FILE_CREATE) {
-        if (self->file = NULL) {
+        if (self->file == NULL) {
             self->file = zfile_new (self->inbox, filename);
             if (zfile_output (self->file)) {
                 //  File not writeable, skip patch
@@ -238,7 +237,7 @@ process_the_patch (client_t *self)
     else
     if (fmq_msg_operation (self->message) == FMQ_MSG_FILE_DELETE) {
         zsys_debug ("delete %s/%s", self->inbox, filename);
-        zfile_t *file = zfile_new (inbox, filename);
+        zfile_t *file = zfile_new (self->inbox, filename);
         zfile_remove (file);
         zfile_destroy (&file);
 
