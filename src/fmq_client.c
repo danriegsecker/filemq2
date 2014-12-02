@@ -401,15 +401,75 @@ fmq_client_test (bool verbose)
     if (verbose)
         zstr_send (server, "VERBOSE");
     zstr_sendx (server, "BIND", "ipc://@/filemq", NULL);
+    zsys_debug ("attempting to create directory");
+    int rc = zsys_dir_create ("./fmqserver");
+    if (rc == 0)
+        zsys_debug ("./fmqserver created");
+    else
+        zsys_error ("./fmqserver NOT created");
+    assert (rc == 0);
+    rc = zsys_dir_create ("./fmqclient");
+    if (rc == 0)
+        zsys_debug ("./fmqclient created");
+    else
+        zsys_error ("./fmqclient NOT created");
+    assert (rc == 0);
+    zsys_debug ("attempting to publish");
+    zstr_sendx (server, "PUBLISH", "./fmqserver", "/", NULL);
+    zsys_debug ("publish sent, attempt to get response");
+    char *response = zstr_recv (server);
+    assert (streq (response, "SUCCESS"));
+    zsys_debug ("fmq_client_test: received %s", response);
+    zstr_free (&response);
 
     fmq_client_t *client = fmq_client_new ("ipc://@/filemq", 500);
     assert (client);
     if (verbose)
         fmq_client_verbose (client);
+    rc = fmq_client_set_inbox (client, "./fmqclient");
+    assert (rc >= 0);
+    rc = fmq_client_subscribe (client, "/");
+    assert (rc >= 0);
+    zsys_debug ("fmq_client_test: subscribed to server root");
+
+    zfile_t *test = zfile_new ("./fmqserver", "test_file.txt");
+    assert (test);
+    rc = zfile_output (test);
+    assert (rc == 0);
+    const char *data = "This is a test file for FileMQ.\n\tThat's all...\n";
+    zchunk_t *chunk = zchunk_new ((const void *) data, strlen (data));
+    assert (chunk);
+    rc = zfile_write (test, chunk, 0);
+    assert (rc == 0);
+    zchunk_destroy (&chunk);
+    zfile_close (test);
+    zfile_restat (test);
+    char *digest = zfile_digest (test);
+    assert (digest);
+    zsys_info ("fmq_client_test: Server file digest %s", digest);
+    zclock_sleep (5000);
+
     fmq_client_destroy (&client);
     zsys_debug ("fmq_client_test: client destroyed");
 
     zactor_destroy (&server);
+    zsys_debug ("fmq_client_test: server destroyed");
+
+    zfile_remove (test);
+    zfile_destroy (&test);
+    /*
+    rc = zsys_dir_delete ("./fmqserver");
+    if (rc == 0)
+        zsys_debug ("./fmqserver has been deleted");
+    else
+        zsys_error ("./fmqserver was not deleted");
+
+    rc = zsys_dir_delete ("./fmqclient");
+    if (rc == 0)
+        zsys_debug ("./fmqclient has been deleted");
+    else
+        zsys_error ("./fmqclient was not deleted");
+    */
     //  @end
     printf ("OK\n");
 }
