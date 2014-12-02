@@ -112,8 +112,8 @@ typedef struct {
     event_t event;              //  Current event
     event_t next_event;         //  The next event
     event_t exception;          //  Exception event, if any
-    int wakeup;           //  zloop timer for client alarms
-    void *ticket;        //  zloop ticket for client timeouts
+    int wakeup;                 //  zloop timer for client alarms
+    void *ticket;               //  zloop ticket for client timeouts
     event_t wakeup_event;       //  Wake up with this event
     char log_prefix [41];       //  Log prefix string
 } s_client_t;
@@ -380,6 +380,8 @@ s_client_destroy (s_client_t **self_p)
         if (self->ticket)
             zloop_ticket_delete (self->server->loop, self->ticket);
         zframe_destroy (&self->routing_id);
+        //  Provide visual clue if application misuses client reference
+        engine_set_log_prefix (&self->client, "*** TERMINATED ***");
         client_terminate (&self->client);
         free (self->hashkey);
         free (self);

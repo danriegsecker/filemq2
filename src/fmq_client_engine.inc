@@ -327,7 +327,7 @@ s_protocol_event (s_client_t *self, fmq_msg_t *message)
             return rtfm_event;
             break;
         default:
-            zsys_error ("fmq_client: invalid protocol event, halting");
+            zsys_error ("fmq_client: unknown command %s, halting", fmq_msg_command (message));
             self->terminated = true;
             return NULL_event;
     }
