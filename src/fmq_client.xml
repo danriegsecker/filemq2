@@ -56,6 +56,9 @@
             This event corresponds with the API destructor. This will tell the
             server we're leaving and then terminate.
             <action name = "send" message = "KTHXBAI" />
+            <action name = "signal success">
+                Success or failure is required for the destructor api.
+            </action>
             <action name = "terminate" />
         </event>
         <event name = "error">
@@ -96,6 +99,9 @@
             This event corresponds with the API destructor. This will tell the
             server we're leaving and then terminate.
             <action name = "send" message = "KTHXBAI" />
+            <action name = "signal success">
+                Success or failure is required for the destructor api.
+            </action>
             <action name = "terminate" />
         </event>
     </state>

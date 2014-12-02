@@ -104,14 +104,18 @@ static void
 client_terminate (client_t *self)
 {
     //  Destroy properties here
-    zsys_info ("client is terminating");
+    zsys_info ("client_terminate: client is terminating");
     while (zlist_size (self->subs)) {
         sub_t *sub = (sub_t *) zlist_pop (self->subs);
+        zsys_debug ("destroy sub %s", sub->path);
         sub_destroy (&sub);
     }
     zlist_destroy (&self->subs);
-    if (self->inbox)
+    zsys_debug ("client_terminate: subscription list destroyed");
+    if (self->inbox) {
         free (self->inbox);
+        zsys_debug ("client_terminate: inbox freed");
+    }
 }
 
 
@@ -371,6 +375,17 @@ subscribe_failed (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
+//  signal_success
+//
+
+static void
+signal_success (client_t *self)
+{
+    zsock_send (self->cmdpipe, "si", "SUCCESS", 0);
+}
+
+
+//  ---------------------------------------------------------------------------
 //  Selftest
 
 void
@@ -385,12 +400,14 @@ fmq_client_test (bool verbose)
     zactor_t *server = zactor_new (fmq_server, "fmq_client_test");
     if (verbose)
         zstr_send (server, "VERBOSE");
-    zstr_sendx (server, "BIND", "ipc://@filemq", NULL);
+    zstr_sendx (server, "BIND", "ipc://@/filemq", NULL);
 
     fmq_client_t *client = fmq_client_new ("ipc://@/filemq", 500);
+    assert (client);
     if (verbose)
         fmq_client_verbose (client);
     fmq_client_destroy (&client);
+    zsys_debug ("fmq_client_test: client destroyed");
 
     zactor_destroy (&server);
     //  @end

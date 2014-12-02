@@ -140,6 +140,8 @@ static void
 static void
     format_icanhaz_command (client_t *self);
 static void
+    signal_success (client_t *self);
+static void
     subscribe_failed (client_t *self);
 static void
     signal_subscribe_success (client_t *self);
@@ -506,6 +508,12 @@ s_client_execute (s_client_t *self, event_t event)
                         fmq_msg_send (self->message, self->dealer);
                     }
                     if (!self->exception) {
+                        //  signal success
+                        if (self->verbose)
+                            zsys_debug ("fmq_client:            $ signal success");
+                        signal_success (&self->client);
+                    }
+                    if (!self->exception) {
                         //  terminate
                         if (self->verbose)
                             zsys_debug ("fmq_client:            $ terminate");
@@ -660,6 +668,12 @@ s_client_execute (s_client_t *self, event_t event)
                         zsys_debug ("fmq_client: Send message to server");
                         fmq_msg_print (self->message);
                         fmq_msg_send (self->message, self->dealer);
+                    }
+                    if (!self->exception) {
+                        //  signal success
+                        if (self->verbose)
+                            zsys_debug ("fmq_client:            $ signal success");
+                        signal_success (&self->client);
                     }
                     if (!self->exception) {
                         //  terminate
