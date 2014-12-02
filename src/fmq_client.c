@@ -201,13 +201,16 @@ process_the_patch (client_t *self)
 {
     const char *filename = fmq_msg_filename (self->message);
 
-    if (*filename != '/')
+    if (*filename != '/') {
+        zsys_error ("filename did not start with /");
         return;
+    }
 
     sub_t *subscr = (sub_t *) zlist_first (self->subs);
     while (subscr) {
         if (!strncmp (filename, subscr->path, strlen (subscr->path))) {
             filename += strlen (subscr->path);
+            zsys_debug ("subscription found for %s", filename);
             break;
         }
     }
@@ -215,8 +218,12 @@ process_the_patch (client_t *self)
 
     if (fmq_msg_operation (self->message) == FMQ_MSG_FILE_CREATE) {
         if (self->file == NULL) {
+            zsys_debug ("creating file object for %s/%s", self->inbox,
+                filename);
             self->file = zfile_new (self->inbox, filename);
             if (zfile_output (self->file)) {
+                zsys_warning ("unable to write to file %s/%s", self->inbox,
+                    filename);
                 //  File not writeable, skip patch
                 zfile_destroy (&self->file);
                 return;
@@ -225,12 +232,15 @@ process_the_patch (client_t *self)
         //  Try to write, ignore errors in this version
         zchunk_t *chunk = fmq_msg_chunk (self->message);
         if (zchunk_size (chunk) > 0) {
+            zsys_debug ("writing chunk at offset %u of %s/%s",
+                fmq_msg_offset (self->message), self->inbox, filename);
             zfile_write (self->file, chunk, fmq_msg_offset (self->message));
             self->credit -= zchunk_size (chunk);
         }
         else {
             //  Zero-sized chunk means end of file, so report back to caller
             // TODO: communicate back to caller
+            zsys_debug ("file complete %s/%s", self->inbox, filename);
             zfile_destroy (&self->file);
         }
     }
@@ -371,10 +381,18 @@ fmq_client_test (bool verbose)
         printf ("\n");
     
     //  @selftest
-    zactor_t *client = zactor_new (fmq_client, NULL);
+    //  Start a server to test against, and bind to endpoint
+    zactor_t *server = zactor_new (fmq_server, "fmq_client_test");
     if (verbose)
-        zstr_send (client, "VERBOSE");
-    zactor_destroy (&client);
+        zstr_send (server, "VERBOSE");
+    zstr_sendx (server, "BIND", "ipc://@filemq", NULL);
+
+    fmq_client_t *client = fmq_client_new ("ipc://@/filemq", 500);
+    if (verbose)
+        fmq_client_verbose (client);
+    fmq_client_destroy (&client);
+
+    zactor_destroy (&server);
     //  @end
     printf ("OK\n");
 }

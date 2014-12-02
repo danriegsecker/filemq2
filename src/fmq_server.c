@@ -20,8 +20,7 @@
 */
 
 //  TODO: Change these to match your project's needs
-#include "../include/fmq_msg.h"
-#include "../include/fmq_server.h"
+#include "filemq_classes.h"
 
 //  ---------------------------------------------------------------------------
 //  Forward declarations for the two main classes we use here
@@ -559,8 +558,14 @@ fmq_server_test (bool verbose)
     zsock_connect (client, "ipc://@/fmq_server");
 
     //  TODO: fill this out
-    fmq_msg_t *request = fmq_msg_new ();
-    fmq_msg_destroy (&request);
+    fmq_msg_t *message = fmq_msg_new ();
+    fmq_msg_set_id (message, FMQ_MSG_OHAI);
+    fmq_msg_send (message, client);
+    fmq_msg_recv (message, client);
+    assert (fmq_msg_id (message) == FMQ_MSG_OHAI_OK);
+    fmq_msg_set_id (message, FMQ_MSG_KTHXBAI);
+    fmq_msg_send (message, client);
+    fmq_msg_destroy (&message);
     
     zsock_destroy (&client);
     zactor_destroy (&server);
