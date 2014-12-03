@@ -50,6 +50,7 @@ typedef struct {
     char *inbox;                //  Path where files will be stored
     zlist_t *subs;              //  Our subscriptions
     sub_t *sub;                 //  Subscription we're sending
+    int timeouts;               //  Count the timeouts
 } client_t;
 
 //  Include the generated client engine
@@ -95,6 +96,7 @@ client_initialize (client_t *self)
     self->subs = zlist_new ();
     self->credit = 0;
     self->inbox = NULL;
+    self->timeouts = 0;
     return 0;
 }
 
@@ -119,8 +121,6 @@ client_terminate (client_t *self)
 }
 
 
-
-
 //  ---------------------------------------------------------------------------
 //  connect_to_server_endpoint
 //
@@ -129,7 +129,7 @@ static void
 connect_to_server_endpoint (client_t *self)
 {
     if (zsock_connect (self->dealer, "%s", self->args->endpoint)) {
-        engine_set_exception (self, error_event);
+        engine_set_exception (self, connect_error_event);
         zsys_warning ("could not connect to %s", self->args->endpoint);
     }
 }
@@ -166,13 +166,13 @@ static void
 format_icanhaz_command (client_t *self)
 {
     if (!self->inbox) {
-        engine_set_exception (self, error_event);
+        engine_set_exception (self, subscribe_error_event);
         zsys_error ("can't subscribe without inbox set");
         return;
     }
     char *path = strdup (self->args->path);
     if (*path != '/') {
-        engine_set_exception (self, error_event);
+        engine_set_exception (self, subscribe_error_event);
         zsys_error ("unable to subscribe path %s, must start with /", path);
         free (path);
         return;
@@ -206,7 +206,7 @@ process_the_patch (client_t *self)
     const char *filename = fmq_msg_filename (self->message);
 
     if (*filename != '/') {
-        zsys_error ("filename did not start with /");
+        zsys_error ("filename did not start with a \'/\'");
         return;
     }
 
@@ -292,7 +292,7 @@ refill_credit_as_needed (client_t *self)
 static void
 log_access_denied (client_t *self)
 {
-    zsys_warning ("access was denied");
+    zsys_warning ("##### access was denied #####");
 }
 
 
@@ -303,7 +303,7 @@ log_access_denied (client_t *self)
 static void
 log_invalid_message (client_t *self)
 {
-    zsys_error ("invalid message");
+    zsys_error ("????? invalid message ?????");
     fmq_msg_print (self->message);
 }
 
@@ -315,19 +315,8 @@ log_invalid_message (client_t *self)
 static void
 log_protocol_error (client_t *self)
 {
-    zsys_error ("protocol error");
+    zsys_error ("***** protocol error *****");
     fmq_msg_print (self->message);
-}
-
-
-//  ---------------------------------------------------------------------------
-//  signal_server_not_present
-//
-
-static void
-signal_server_not_present (client_t *self)
-{
-    zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "server is not reachable");
 }
 
 
@@ -396,7 +385,8 @@ signal_success (client_t *self)
 static void
 handle_connect_error (client_t *self)
 {
-
+    zsys_warning ("unable to connect to the server");
+    engine_set_next_event (self, bombcmd_event);
 }
 
 
@@ -407,7 +397,28 @@ handle_connect_error (client_t *self)
 static void
 handle_connect_timeout (client_t *self)
 {
+    if (self->timeouts <= 3)
+        self->timeouts++;
+    else {
+        zsys_warning ("server did not respond to the request to communicate");
+        engine_set_next_event (self, bombcmd_event);
+    }
+}
 
+
+//  ---------------------------------------------------------------------------
+//  handle_subscribe_timeout
+//
+
+static void
+handle_subscribe_timeout (client_t *self)
+{
+    if (self->timeouts <= 3)
+        self->timeouts++;
+    else {
+        zsys_warning ("server did not respond to subscription request");
+        engine_set_next_event (self, bombcmd_event);
+    }
 }
 
 
@@ -418,18 +429,10 @@ handle_connect_timeout (client_t *self)
 static void
 handle_connected_timeout (client_t *self)
 {
-
-}
-
-
-//  ---------------------------------------------------------------------------
-//  handle_subscription_timeout
-//
-
-static void
-handle_subscription_timeout (client_t *self)
-{
-
+    if (self->timeouts <= 3)
+        self->timeouts++;
+    else
+        engine_set_next_event (self, bombmsg_event);
 }
 
 
@@ -440,7 +443,7 @@ handle_subscription_timeout (client_t *self)
 static void
 sync_server_not_present (client_t *self)
 {
-
+    zsock_send (self->cmdpipe, "sis", "FAILURE", -1, "server is not reachable");
 }
 
 
@@ -451,7 +454,7 @@ sync_server_not_present (client_t *self)
 static void
 async_server_not_present (client_t *self)
 {
-
+    zsock_send (self->msgpipe, "ss", "DISCONNECT", "server is not reachable");
 }
 
 
@@ -462,7 +465,7 @@ async_server_not_present (client_t *self)
 static void
 stayin_alive (client_t *self)
 {
-
+    self->timeouts = 0;
 }
 
 
@@ -512,9 +515,11 @@ fmq_client_test (bool verbose)
     assert (client);
     if (verbose)
         fmq_client_verbose (client);
+
     //  Set the clients storage location
     rc = fmq_client_set_inbox (client, "./fmqclient");
     assert (rc >= 0);
+
     //  Subscribe to the server's root
     rc = fmq_client_subscribe (client, "/");
     assert (rc >= 0);
@@ -524,19 +529,19 @@ fmq_client_test (bool verbose)
     zsock_t *pipe = fmq_client_msgpipe (client);
 
     //  Create and populate file that will be shared
-    zfile_t *test = zfile_new ("./fmqserver", "test_file.txt");
-    assert (test);
-    rc = zfile_output (test);
+    zfile_t *sfile = zfile_new ("./fmqserver", "test_file.txt");
+    assert (sfile);
+    rc = zfile_output (sfile);
     assert (rc == 0);
     const char *data = "This is a test file for FileMQ.\n\tThat's all...\n";
     zchunk_t *chunk = zchunk_new ((const void *) data, strlen (data));
     assert (chunk);
-    rc = zfile_write (test, chunk, 0);
+    rc = zfile_write (sfile, chunk, 0);
     assert (rc == 0);
     zchunk_destroy (&chunk);
-    zfile_close (test);
-    zfile_restat (test);
-    char *sdigest = zfile_digest (test);
+    zfile_close (sfile);
+    zfile_restat (sfile);
+    char *sdigest = zfile_digest (sfile);
     assert (sdigest);
     zsys_info ("fmq_client_test: Server file digest %s", sdigest);
 
@@ -545,30 +550,39 @@ fmq_client_test (bool verbose)
     zmsg_print (pipemsg);
     zmsg_destroy (&pipemsg);
 
-    //  Delete the file the server is sharing
-    zfile_remove (test);
-    zfile_destroy (&test);
+    //  See if the server and client files match
+    zfile_t *cfile = zfile_new ("./fmqclient", "test_file.txt");
+    assert (cfile);
+    zfile_restat (cfile);
+    char *cdigest = zfile_digest (cfile);
+    assert (cdigest);
+    zsys_info ("fmq_client_test: Client file digest %s", cdigest);
+    assert (streq (sdigest, cdigest));
 
-/*
-    //  Wait for notification of file delete
-    pipemsg = zmsg_recv ( (void *) pipe);
-    zmsg_print (pipemsg);
-    zmsg_destroy (&pipemsg);
-*/
-
+    //  Kill the client
     fmq_client_destroy (&client);
     zsys_debug ("fmq_client_test: client destroyed");
 
+    //  Kill the server
     zactor_destroy (&server);
     zsys_debug ("fmq_client_test: server destroyed");
 
+    //  Delete the file the server is sharing
+    zfile_remove (sfile);
+    zfile_destroy (&sfile);
 
+    //  Delete the file the client has
+    zfile_remove (cfile);
+    zfile_destroy (&cfile);
+
+    //  Delete the directory used by the server
     rc = zsys_dir_delete ("./fmqserver");
     if (rc == 0)
         zsys_debug ("./fmqserver has been deleted");
     else
         zsys_error ("./fmqserver was not deleted");
 
+    //  Delete the directory used by the client
     rc = zsys_dir_delete ("./fmqclient");
     if (rc == 0)
         zsys_debug ("./fmqclient has been deleted");

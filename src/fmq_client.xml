@@ -29,7 +29,7 @@
             <!-- Initiate FileMQ conversation with the server -->
             <action name = "send" message = "OHAI" />
         </event>
-        <event name = "connect error" next = "bombcmd">
+        <event name = "connect error">
             The dealer socket was not successfully connected to the server. This
             could be due to a bad endpoint.
             <action name = "handle connect error" />
@@ -43,7 +43,7 @@
             <action name = "stayin alive" />
             <action name = "connected to server" />
         </event>
-        <event name = "expired" next = "bombcmd">
+        <event name = "expired">
             If the timeout occurs during connection, terminate via the bombcmd
             event.
             <action name = "handle connect timeout" />
@@ -97,7 +97,7 @@
             <action name = "signal subscribe success" />
         </event>
         <event name = "expired">
-            <action name = "handle subscription timeout" />
+            <action name = "handle subscribe timeout" />
         </event>
     </state>
 
@@ -154,11 +154,16 @@
             <action name = "log protocol error" />
         </event>
         <event name = "bombcmd">
+            This event is used when a connection timeout occurs on a
+            synchronous API call.
             <action name = "sync server not present" />
             <action name = "terminate" />
         </event>
         <event name = "bombmsg">
+            This event is used when a communication timeout occurs and the
+            client is not in the middle of handling an API call.
             <action name = "async server not present" />
+            <action name = "terminate" />
         </event>
     </state>
 

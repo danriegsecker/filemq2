@@ -160,7 +160,7 @@ static void
 static void
     signal_subscribe_success (client_t *self);
 static void
-    handle_subscription_timeout (client_t *self);
+    handle_subscribe_timeout (client_t *self);
 static void
     process_the_patch (client_t *self);
 static void
@@ -414,8 +414,6 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("fmq_client:            $ handle connect error");
                         handle_connect_error (&self->client);
                     }
-                    if (!self->exception)
-                        self->state = bombcmd_state;
                 }
                 else
                 if (self->event == srsly_event) {
@@ -490,6 +488,12 @@ s_client_execute (s_client_t *self, event_t event)
                         if (self->verbose)
                             zsys_debug ("fmq_client:            $ async server not present");
                         async_server_not_present (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->verbose)
+                            zsys_debug ("fmq_client:            $ terminate");
+                        self->terminated = true;
                     }
                 }
                 else {
@@ -528,8 +532,6 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("fmq_client:            $ handle connect timeout");
                         handle_connect_timeout (&self->client);
                     }
-                    if (!self->exception)
-                        self->state = bombcmd_state;
                 }
                 else
                 if (self->event == srsly_event) {
@@ -604,6 +606,12 @@ s_client_execute (s_client_t *self, event_t event)
                         if (self->verbose)
                             zsys_debug ("fmq_client:            $ async server not present");
                         async_server_not_present (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->verbose)
+                            zsys_debug ("fmq_client:            $ terminate");
+                        self->terminated = true;
                     }
                 }
                 else {
@@ -771,6 +779,12 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("fmq_client:            $ async server not present");
                         async_server_not_present (&self->client);
                     }
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->verbose)
+                            zsys_debug ("fmq_client:            $ terminate");
+                        self->terminated = true;
+                    }
                 }
                 else {
                     //  Handle unexpected protocol events
@@ -803,10 +817,10 @@ s_client_execute (s_client_t *self, event_t event)
                 else
                 if (self->event == expired_event) {
                     if (!self->exception) {
-                        //  handle subscription timeout
+                        //  handle subscribe timeout
                         if (self->verbose)
-                            zsys_debug ("fmq_client:            $ handle subscription timeout");
-                        handle_subscription_timeout (&self->client);
+                            zsys_debug ("fmq_client:            $ handle subscribe timeout");
+                        handle_subscribe_timeout (&self->client);
                     }
                 }
                 else
@@ -882,6 +896,12 @@ s_client_execute (s_client_t *self, event_t event)
                         if (self->verbose)
                             zsys_debug ("fmq_client:            $ async server not present");
                         async_server_not_present (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->verbose)
+                            zsys_debug ("fmq_client:            $ terminate");
+                        self->terminated = true;
                     }
                 }
                 else {
@@ -1053,6 +1073,12 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("fmq_client:            $ async server not present");
                         async_server_not_present (&self->client);
                     }
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->verbose)
+                            zsys_debug ("fmq_client:            $ terminate");
+                        self->terminated = true;
+                    }
                 }
                 else {
                     //  Handle unexpected protocol events
@@ -1138,6 +1164,12 @@ s_client_execute (s_client_t *self, event_t event)
                         if (self->verbose)
                             zsys_debug ("fmq_client:            $ async server not present");
                         async_server_not_present (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  terminate
+                        if (self->verbose)
+                            zsys_debug ("fmq_client:            $ terminate");
+                        self->terminated = true;
                     }
                 }
                 else {
