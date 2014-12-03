@@ -17,24 +17,36 @@
     Names of states, events, and actions are case insensitive.
     By convention however we use uppercase for protocol events.
 
-    <state name = "start">
+    <state name = "start" inherit = "defaults">
+        Start up the client, connect to the server, and initiate a conversation
+        with the server. This is a short lived state and will either error on
+        connection, e.g. bad endpoint, or it will move on to connecting.
         <event name = "constructor" next = "connecting">
+            <!-- Actually connect dealer socket to the server -->
             <action name = "connect to server endpoint" />
+            <!-- Tell the engine to notify if the server is not heard from -->
             <action name = "use connect timeout" />
+            <!-- Initiate FileMQ conversation with the server -->
             <action name = "send" message = "OHAI" />
         </event>
-        <event name = "error">
-            <action name = "terminate" />
+        <event name = "connect error" next = "bombcmd">
+            The dealer socket was not successfully connected to the server. This
+            could be due to a bad endpoint.
+            <action name = "handle connect error" />
         </event>
     </state>
 
     <state name = "connecting" inherit = "defaults">
         <event name = "OHAI OK" next = "connected">
+            The server is now connected and the user can be notified with a
+            success message via the command pipe.
+            <action name = "stayin alive" />
             <action name = "connected to server" />
         </event>
-        <event name = "expired">
-            <action name = "signal server not present" />
-            <action name = "terminate" />
+        <event name = "expired" next = "bombcmd">
+            If the timeout occurs during connection, terminate via the bombcmd
+            event.
+            <action name = "handle connect timeout" />
         </event>
     </state>
 
@@ -61,11 +73,17 @@
             </action>
             <action name = "terminate" />
         </event>
-        <event name = "error">
+        <event name = "subscribe error">
             In this state, error can be triggered from the subscribe event to
             signal bad parameter from the "subscribe" API method. This is not
             fatal, so stay in this state.
             <action name = "subscribe failed" />
+        </event>
+        <event name = "expired">
+            Handle timeout in messaging from server by sending a ping. Will
+            try multiple times before giving up.
+            <action name = "handle connected timeout" />
+            <action name = "send" message = "HUGZ" />
         </event>
     </state>
 
@@ -75,7 +93,11 @@
             Subscription was successful, tell our user and move to the
             subscribed state. A send credit will be triggered from this
             action.
+            <action name = "stayin alive" />
             <action name = "signal subscribe success" />
+        </event>
+        <event name = "expired">
+            <action name = "handle subscription timeout" />
         </event>
     </state>
 
@@ -88,6 +110,7 @@
         <event name = "CHEEZBURGER">
             Receive a portion of a file and make sure that the client has credit
             with the server.
+            <action name = "stayin alive" />
             <action name = "process the patch" />
             <action name = "refill credit as needed" />
         </event>
@@ -104,26 +127,39 @@
             </action>
             <action name = "terminate" />
         </event>
+        <event name = "expired">
+            Handle timeout in messaging from server by sending a ping. Will
+            try multiple times before giving up.
+            <action name = "handle connected timeout" />
+            <action name = "send" message = "HUGZ" />
+        </event>
     </state>
 
     <state name = "defaults">
         <event name = "SRSLY">
+            <action name = "stayin alive" />
             <action name = "log access denied" />
             <action name = "terminate" />
         </event>
         <event name = "RTFM">
+            <action name = "stayin alive" />
             <action name = "log invalid message" />
             <action name = "terminate" />
         </event>
+        <event name = "HUGZ OK">
+            Just keeping the connection alive.
+            <action name = "stayin alive" />
+        </event>
         <event name = "*">
             <action name = "log protocol error" />
-            <!-- <action name = "terminate" /> -->
         </event>
-        <!-- This built-in event hits on a connection timeout -->
-        <!--
-        <event name = "timeout">
+        <event name = "bombcmd">
+            <action name = "sync server not present" />
             <action name = "terminate" />
-        </event> -->
+        </event>
+        <event name = "bombmsg">
+            <action name = "async server not present" />
+        </event>
     </state>
 
     <!-- API methods -->
@@ -166,5 +202,4 @@
         <field name = "status" type = "number" size = "1" />
         <field name = "reason" type = "string" />
     </reply>
-
 </class>

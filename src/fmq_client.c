@@ -243,8 +243,10 @@ process_the_patch (client_t *self)
         }
         else {
             //  Zero-sized chunk means end of file, so report back to caller
-            // TODO: communicate back to caller
+            //  Communicate back to caller via the msgpipe
             zsys_debug ("file complete %s/%s", self->inbox, filename);
+            zsock_send (self->msgpipe, "sss", "FILE UPDATED", self->inbox,
+                filename);
             zfile_destroy (&self->file);
         }
     }
@@ -256,7 +258,9 @@ process_the_patch (client_t *self)
         zfile_destroy (&file);
 
         //  Report file deletion back to caller
-        //  TODO: notifiy caller
+        //  Notify the caller of deletion
+        zsock_send (self->msgpipe, "sss", "FILE DELETED", self->inbox,
+            filename);
     }
 }
 
@@ -386,6 +390,83 @@ signal_success (client_t *self)
 
 
 //  ---------------------------------------------------------------------------
+//  handle_connect_error
+//
+
+static void
+handle_connect_error (client_t *self)
+{
+
+}
+
+
+//  ---------------------------------------------------------------------------
+//  handle_connect_timeout
+//
+
+static void
+handle_connect_timeout (client_t *self)
+{
+
+}
+
+
+//  ---------------------------------------------------------------------------
+//  handle_connected_timeout
+//
+
+static void
+handle_connected_timeout (client_t *self)
+{
+
+}
+
+
+//  ---------------------------------------------------------------------------
+//  handle_subscription_timeout
+//
+
+static void
+handle_subscription_timeout (client_t *self)
+{
+
+}
+
+
+//  ---------------------------------------------------------------------------
+//  sync_server_not_present
+//
+
+static void
+sync_server_not_present (client_t *self)
+{
+
+}
+
+
+//  ---------------------------------------------------------------------------
+//  async_server_not_present
+//
+
+static void
+async_server_not_present (client_t *self)
+{
+
+}
+
+
+//  ---------------------------------------------------------------------------
+//  stayin_alive
+//
+
+static void
+stayin_alive (client_t *self)
+{
+
+}
+
+
+//  ---------------------------------------------------------------------------
 //  Selftest
 
 void
@@ -397,10 +478,12 @@ fmq_client_test (bool verbose)
     
     //  @selftest
     //  Start a server to test against, and bind to endpoint
-    zactor_t *server = zactor_new (fmq_server, "fmq_client_test");
+    zactor_t *server = zactor_new (fmq_server, "fmq_server");
     if (verbose)
         zstr_send (server, "VERBOSE");
     zstr_sendx (server, "BIND", "ipc://@/filemq", NULL);
+
+    //  Create directories used for the test.
     zsys_debug ("attempting to create directory");
     int rc = zsys_dir_create ("./fmqserver");
     if (rc == 0)
@@ -414,6 +497,8 @@ fmq_client_test (bool verbose)
     else
         zsys_error ("./fmqclient NOT created");
     assert (rc == 0);
+
+    //  Tell the server to publish from directory just created
     zsys_debug ("attempting to publish");
     zstr_sendx (server, "PUBLISH", "./fmqserver", "/", NULL);
     zsys_debug ("publish sent, attempt to get response");
@@ -422,16 +507,23 @@ fmq_client_test (bool verbose)
     zsys_debug ("fmq_client_test: received %s", response);
     zstr_free (&response);
 
+    //  Create the client
     fmq_client_t *client = fmq_client_new ("ipc://@/filemq", 500);
     assert (client);
     if (verbose)
         fmq_client_verbose (client);
+    //  Set the clients storage location
     rc = fmq_client_set_inbox (client, "./fmqclient");
     assert (rc >= 0);
+    //  Subscribe to the server's root
     rc = fmq_client_subscribe (client, "/");
     assert (rc >= 0);
     zsys_debug ("fmq_client_test: subscribed to server root");
 
+    //  Get a reference to the msgpipe
+    zsock_t *pipe = fmq_client_msgpipe (client);
+
+    //  Create and populate file that will be shared
     zfile_t *test = zfile_new ("./fmqserver", "test_file.txt");
     assert (test);
     rc = zfile_output (test);
@@ -444,10 +536,25 @@ fmq_client_test (bool verbose)
     zchunk_destroy (&chunk);
     zfile_close (test);
     zfile_restat (test);
-    char *digest = zfile_digest (test);
-    assert (digest);
-    zsys_info ("fmq_client_test: Server file digest %s", digest);
-    zclock_sleep (5000);
+    char *sdigest = zfile_digest (test);
+    assert (sdigest);
+    zsys_info ("fmq_client_test: Server file digest %s", sdigest);
+
+    //  Wait for notification of file update
+    zmsg_t *pipemsg = zmsg_recv ( (void *) pipe);
+    zmsg_print (pipemsg);
+    zmsg_destroy (&pipemsg);
+
+    //  Delete the file the server is sharing
+    zfile_remove (test);
+    zfile_destroy (&test);
+
+/*
+    //  Wait for notification of file delete
+    pipemsg = zmsg_recv ( (void *) pipe);
+    zmsg_print (pipemsg);
+    zmsg_destroy (&pipemsg);
+*/
 
     fmq_client_destroy (&client);
     zsys_debug ("fmq_client_test: client destroyed");
@@ -455,9 +562,7 @@ fmq_client_test (bool verbose)
     zactor_destroy (&server);
     zsys_debug ("fmq_client_test: server destroyed");
 
-    zfile_remove (test);
-    zfile_destroy (&test);
-    /*
+
     rc = zsys_dir_delete ("./fmqserver");
     if (rc == 0)
         zsys_debug ("./fmqserver has been deleted");
@@ -469,7 +574,7 @@ fmq_client_test (bool verbose)
         zsys_debug ("./fmqclient has been deleted");
     else
         zsys_error ("./fmqclient was not deleted");
-    */
+
     //  @end
     printf ("OK\n");
 }
