@@ -137,22 +137,32 @@ sub_patch_add (sub_t *self, zdir_patch_t *patch)
     if (zdir_patch_op (patch) == patch_create) {
         char *digest = (char *) zhash_lookup (self->cache,
                                     zdir_patch_vpath (patch) + strlen(self->path) + 1);
-        if (digest && streq (digest, zdir_patch_digest (patch)))
+        if (digest && streq (digest, zdir_patch_digest (patch))) {
+            zsys_debug ("sub_patch_add: skipping patch");
             return;             //  Just skip patch for this client
+        }
     }
     //  Remove any previous patches for the same file
     zdir_patch_t *existing = (zdir_patch_t *) zlist_first (self->client->patches);
     while (existing) {
         if (streq (zdir_patch_vpath (patch), zdir_patch_vpath (existing))) {
+            zsys_debug ("!!! removing patch !!!");
+            zsys_debug ("path=%s, op=%d, vpath=%s", zdir_patch_path (existing),
+                zdir_patch_op (existing), zdir_patch_vpath (existing));
             zlist_remove (self->client->patches, existing);
             zdir_patch_destroy (&existing);
             break;
         }
         existing = (zdir_patch_t *) zlist_next (self->client->patches);
     }
-    if (zdir_patch_op (patch) == patch_create)
+    if (zdir_patch_op (patch) == patch_create) {
+        zsys_debug ("---> inserting patch <---");
+        zsys_debug ("path=%s, op=%d, vpath=%s", zdir_patch_path (patch),
+            zdir_patch_op (patch), zdir_patch_vpath (patch));
         zhash_insert (self->cache,
             zdir_patch_digest (patch), zdir_patch_vpath (patch));
+    }
+
     //  Track that we've queued patch for client, so we don't do it twice
     zlist_append (self->client->patches, zdir_patch_dup (patch));
 }
@@ -217,11 +227,25 @@ mount_destroy (mount_t **self_p)
 static bool
 mount_refresh (mount_t *self, server_t *server)
 {
+    zsys_debug ("mount_refresh: checking for changes to mount point");
     bool activity = false;
 
     //  Get latest snapshot and build a patches list for any changes
     zdir_t *latest = zdir_new (self->location, NULL);
+    zsys_debug ("mount_refresh: old dir");
+    zdir_print (self->dir, 2);
+    zsys_debug ("mount_refresh: new dir");
+    zdir_print (latest, 2);
     zlist_t *patches = zdir_diff (self->dir, latest, self->alias);
+
+    zdir_patch_t *tmppatch = (zdir_patch_t *) zlist_first (patches);
+    while (tmppatch) {
+        zsys_debug ("--- patch=%s, vpath=%s, op=%d", zdir_patch_path (tmppatch),
+            zdir_patch_vpath (tmppatch), zdir_patch_op (tmppatch));
+        zfile_t *tmpfile = zdir_patch_file (tmppatch);
+        zsys_debug ("----- file name=%s", zfile_filename (tmpfile, NULL));
+        tmppatch = (zdir_patch_t *) zlist_next (patches);
+    }
 
     //  Drop old directory and replace with latest version
     zdir_destroy (&self->dir);

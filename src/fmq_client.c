@@ -559,6 +559,12 @@ fmq_client_test (bool verbose)
     zsys_info ("fmq_client_test: Client file digest %s", cdigest);
     assert (streq (sdigest, cdigest));
 
+    //  Delete the file the server is sharing
+    zfile_remove (sfile);
+    zfile_destroy (&sfile);
+
+    zclock_sleep (5000);
+
     //  Kill the client
     fmq_client_destroy (&client);
     zsys_debug ("fmq_client_test: client destroyed");
@@ -567,9 +573,6 @@ fmq_client_test (bool verbose)
     zactor_destroy (&server);
     zsys_debug ("fmq_client_test: server destroyed");
 
-    //  Delete the file the server is sharing
-    zfile_remove (sfile);
-    zfile_destroy (&sfile);
 
     //  Delete the file the client has
     zfile_remove (cfile);
