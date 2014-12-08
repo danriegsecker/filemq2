@@ -31,24 +31,25 @@
         The server now has a connected client we at this point need
         at least one subscrition and NOM credit before any files
         get dispatched.
-        <event name = "ICANHAZ">
+        <event name = "ICANHAZ" next = "dispatching">
             The server receives a subscription request from the
             connected client and therefore stores that subscription
             and responds if things are OK. This event does not move
             the server to a new state.
             <action name = "store client subscription" />
             <action name = "send" message = "ICANHAZ OK" />
+            <action name = "check for client data" />
         </event>
         <event name = "NOM" next = "dispatching">
             The server receives a credit from the client and can now
             move on to the dispatching state and send data.
             <action name = "store client credit" />
-            <action name = "get next patch for client" />
+            <action name = "check for client data" />
         </event>
         <event name = "dispatch" next = "dispatching">
             Internal event for when a subscribed directory has a change
             detected.
-            <action name = "get next patch for client" />
+            <action name = "check for client data" />
         </event>
         <!-- HUGZ (essentially a ping) is always valid -->
         <event name = "HUGZ">
@@ -60,7 +61,7 @@
         </event>
         <!-- Client can restart connection at any time -->
         <event name = "OHAI">
-            <action name = "send" message = "OHAI-OK" />
+            <action name = "send" message = "OHAI OK" />
         </event>
     </state>
 
@@ -68,27 +69,30 @@
         The server now has client connection that has submitted a subscription
         request and has given credit. The server can send data.
         <event name = "send chunk">
-            <action name = "send" message = "CHEEZBURGER" />
             <action name = "get next patch for client" />
-        </event>
-        <event name = "send delete">
             <action name = "send" message = "CHEEZBURGER" />
-            <action name = "get next patch for client" />
+            <action name = "check for client data" />
         </event>
         <event name = "next patch">
             <action name = "get next patch for client" />
+            <action name = "send" message = "CHEEZBURGER" />
+            <action name = "check for client data" />
         </event>
-        <event name = "no credit" next = "ready" />
-        <event name = "finished" next = "ready" />
+        <event name = "no credit" next = "ready">
+            <action name = "handle client no credit" />
+        </event>
+        <event name = "finished" next = "ready">
+            <action name = "handle client finished" />
+        </event>
         <event name = "NOM">
             The server receives a credit from the client and can now
             move on to the dispatching state and send data.
             <action name = "store client credit" />
-            <action name = "get next patch for client" />
+            <action name = "check for client data" />
         </event>
         <!-- HUGZ (essentially a ping) is always valid -->
         <event name = "HUGZ">
-            <action name = "send" message = "HUGZ-OK" />
+            <action name = "send" message = "HUGZ OK" />
         </event>
         <!-- The client can terminate the connection at any time -->
         <event name = "KTHXBAI">
@@ -96,7 +100,7 @@
         </event>
         <!-- Client can restart connection at any time -->
         <event name = "OHAI" next = "ready">
-            <action name = "send" message = "OHAI-OK" />
+            <action name = "send" message = "OHAI OK" />
         </event>
     </state>
 

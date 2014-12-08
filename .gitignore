@@ -23,6 +23,8 @@
 
 # Executables
 filemq_selftest
+filemq_server
+filemq_client
 *.exe
 *.out
 *.app

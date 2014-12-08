@@ -563,7 +563,10 @@ fmq_client_test (bool verbose)
     zfile_remove (sfile);
     zfile_destroy (&sfile);
 
-    zclock_sleep (3000);
+    //  Wait for notification of file update
+    pipemsg = zmsg_recv ( (void *) pipe);
+    zmsg_print (pipemsg);
+    zmsg_destroy (&pipemsg);
 
     //  Kill the client
     fmq_client_destroy (&client);
@@ -572,7 +575,6 @@ fmq_client_test (bool verbose)
     //  Kill the server
     zactor_destroy (&server);
     zsys_debug ("fmq_client_test: server destroyed");
-
 
     //  Delete the file the client has
     zfile_remove (cfile);

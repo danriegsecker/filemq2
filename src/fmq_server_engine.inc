@@ -41,11 +41,10 @@ typedef enum {
     hugz_event = 6,
     kthxbai_event = 7,
     send_chunk_event = 8,
-    send_delete_event = 9,
-    next_patch_event = 10,
-    no_credit_event = 11,
-    finished_event = 12,
-    expired_event = 13
+    next_patch_event = 9,
+    no_credit_event = 10,
+    finished_event = 11,
+    expired_event = 12
 } event_t;
 
 //  Names for state machine logging and error reporting
@@ -69,7 +68,6 @@ s_event_name [] = {
     "HUGZ",
     "KTHXBAI",
     "send_chunk",
-    "send_delete",
     "next_patch",
     "no_credit",
     "finished",
@@ -137,9 +135,15 @@ static int
 static void
     store_client_subscription (client_t *self);
 static void
+    check_for_client_data (client_t *self);
+static void
     store_client_credit (client_t *self);
 static void
     get_next_patch_for_client (client_t *self);
+static void
+    handle_client_no_credit (client_t *self);
+static void
+    handle_client_finished (client_t *self);
 
 //  ---------------------------------------------------------------------------
 //  These methods are an internal API for actions
@@ -486,6 +490,14 @@ s_client_execute (s_client_t *self, event_t event)
                         fmq_msg_set_routing_id (self->server->message, self->routing_id);
                         fmq_msg_send (self->server->message, self->server->router);
                     }
+                    if (!self->exception) {
+                        //  check for client data
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ check for client data", self->log_prefix);
+                        check_for_client_data (&self->client);
+                    }
+                    if (!self->exception)
+                        self->state = dispatching_state;
                 }
                 else
                 if (self->event == nom_event) {
@@ -496,10 +508,10 @@ s_client_execute (s_client_t *self, event_t event)
                         store_client_credit (&self->client);
                     }
                     if (!self->exception) {
-                        //  get next patch for client
+                        //  check for client data
                         if (self->server->verbose)
-                            zsys_debug ("%s:         $ get next patch for client", self->log_prefix);
-                        get_next_patch_for_client (&self->client);
+                            zsys_debug ("%s:         $ check for client data", self->log_prefix);
+                        check_for_client_data (&self->client);
                     }
                     if (!self->exception)
                         self->state = dispatching_state;
@@ -507,10 +519,10 @@ s_client_execute (s_client_t *self, event_t event)
                 else
                 if (self->event == dispatch_event) {
                     if (!self->exception) {
-                        //  get next patch for client
+                        //  check for client data
                         if (self->server->verbose)
-                            zsys_debug ("%s:         $ get next patch for client", self->log_prefix);
-                        get_next_patch_for_client (&self->client);
+                            zsys_debug ("%s:         $ check for client data", self->log_prefix);
+                        check_for_client_data (&self->client);
                     }
                     if (!self->exception)
                         self->state = dispatching_state;
@@ -586,25 +598,11 @@ s_client_execute (s_client_t *self, event_t event)
             case dispatching_state:
                 if (self->event == send_chunk_event) {
                     if (!self->exception) {
-                        //  send CHEEZBURGER
-                        if (self->server->verbose)
-                            zsys_debug ("%s:         $ send CHEEZBURGER",
-                                self->log_prefix);
-                        fmq_msg_set_id (self->server->message, FMQ_MSG_CHEEZBURGER);
-                        zsys_debug ("%s: Send message to client", self->log_prefix);
-                        fmq_msg_print (self->server->message);
-                        fmq_msg_set_routing_id (self->server->message, self->routing_id);
-                        fmq_msg_send (self->server->message, self->server->router);
-                    }
-                    if (!self->exception) {
                         //  get next patch for client
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ get next patch for client", self->log_prefix);
                         get_next_patch_for_client (&self->client);
                     }
-                }
-                else
-                if (self->event == send_delete_event) {
                     if (!self->exception) {
                         //  send CHEEZBURGER
                         if (self->server->verbose)
@@ -617,10 +615,10 @@ s_client_execute (s_client_t *self, event_t event)
                         fmq_msg_send (self->server->message, self->server->router);
                     }
                     if (!self->exception) {
-                        //  get next patch for client
+                        //  check for client data
                         if (self->server->verbose)
-                            zsys_debug ("%s:         $ get next patch for client", self->log_prefix);
-                        get_next_patch_for_client (&self->client);
+                            zsys_debug ("%s:         $ check for client data", self->log_prefix);
+                        check_for_client_data (&self->client);
                     }
                 }
                 else
@@ -631,14 +629,43 @@ s_client_execute (s_client_t *self, event_t event)
                             zsys_debug ("%s:         $ get next patch for client", self->log_prefix);
                         get_next_patch_for_client (&self->client);
                     }
+                    if (!self->exception) {
+                        //  send CHEEZBURGER
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send CHEEZBURGER",
+                                self->log_prefix);
+                        fmq_msg_set_id (self->server->message, FMQ_MSG_CHEEZBURGER);
+                        zsys_debug ("%s: Send message to client", self->log_prefix);
+                        fmq_msg_print (self->server->message);
+                        fmq_msg_set_routing_id (self->server->message, self->routing_id);
+                        fmq_msg_send (self->server->message, self->server->router);
+                    }
+                    if (!self->exception) {
+                        //  check for client data
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ check for client data", self->log_prefix);
+                        check_for_client_data (&self->client);
+                    }
                 }
                 else
                 if (self->event == no_credit_event) {
+                    if (!self->exception) {
+                        //  handle client no credit
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ handle client no credit", self->log_prefix);
+                        handle_client_no_credit (&self->client);
+                    }
                     if (!self->exception)
                         self->state = ready_state;
                 }
                 else
                 if (self->event == finished_event) {
+                    if (!self->exception) {
+                        //  handle client finished
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ handle client finished", self->log_prefix);
+                        handle_client_finished (&self->client);
+                    }
                     if (!self->exception)
                         self->state = ready_state;
                 }
@@ -651,10 +678,10 @@ s_client_execute (s_client_t *self, event_t event)
                         store_client_credit (&self->client);
                     }
                     if (!self->exception) {
-                        //  get next patch for client
+                        //  check for client data
                         if (self->server->verbose)
-                            zsys_debug ("%s:         $ get next patch for client", self->log_prefix);
-                        get_next_patch_for_client (&self->client);
+                            zsys_debug ("%s:         $ check for client data", self->log_prefix);
+                        check_for_client_data (&self->client);
                     }
                 }
                 else
@@ -802,7 +829,7 @@ s_client_handle_wakeup (zloop_t *loop, int timer_id, void *argument)
 //  Server methods
 
 static void
-s_server_config_self (s_server_t *self)
+s_server_config_global (s_server_t *self)
 {
     //  Built-in server configuration options
     //  
@@ -845,7 +872,7 @@ s_server_new (zsock_t *pipe)
     srandom ((unsigned int) zclock_time ());
     self->client_id = randof (1000);
     zloop_set_verbose (self->loop, true);
-    s_server_config_self (self);
+    s_server_config_global (self);
 
     //  Initialize application server context
     self->server.pipe = self->pipe;
@@ -874,13 +901,13 @@ s_server_destroy (s_server_t **self_p)
     }
 }
 
-//  Apply configuration tree:
+//  Apply service-specific configuration tree:
 //   * apply server configuration
 //   * print any echo items in top-level sections
 //   * apply sections that match methods
 
 static void
-s_server_apply_config (s_server_t *self)
+s_server_config_service (s_server_t *self)
 {
     //  Apply echo commands and class methods
     zconfig_t *section = zconfig_locate (self->config, "fmq_server");
@@ -896,9 +923,23 @@ s_server_apply_config (s_server_t *self)
             if (zsock_bind (self->router, "%s", endpoint) == -1)
                 zsys_warning ("could not bind to %s (%s)", endpoint, zmq_strerror (zmq_errno ()));
         }
+        else
+        if (streq (zconfig_name (section), "security")) {
+            char *mechanism = zconfig_resolve (section, "mechanism", "null");
+            char *domain = zconfig_resolve (section, "domain", NULL);
+            if (streq (mechanism, "null")) {
+                if (domain)
+                    zsock_set_zap_domain (self->router, NULL);
+            }
+            else
+            if (streq (mechanism, "plain"))
+                zsock_set_plain_server (self->router, 1);
+            else
+                zsys_warning ("mechanism=%s is not supported", mechanism);
+        }
         section = zconfig_next (section);
     }
-    s_server_config_self (self);
+    s_server_config_global (self);
 }
 
 //  Process message from pipe
@@ -946,7 +987,7 @@ s_server_handle_pipe (zloop_t *loop, zsock_t *reader, void *argument)
         zconfig_destroy (&self->config);
         self->config = zconfig_load (config_file);
         if (self->config) {
-            s_server_apply_config (self);
+            s_server_config_service (self);
             self->server.config = self->config;
         }
         else {
@@ -964,7 +1005,7 @@ s_server_handle_pipe (zloop_t *loop, zsock_t *reader, void *argument)
             zsys_warning ("'%s' is deprecated, use VERBOSE command instead", path);
             self->verbose = atoi (value);
         }
-        s_server_config_self (self);
+        s_server_config_global (self);
         free (path);
         free (value);
     }
@@ -1020,7 +1061,7 @@ s_watch_server_config (zloop_t *loop, int timer_id, void *argument)
     s_server_t *self = (s_server_t *) argument;
     if (zconfig_has_changed (self->config)
     &&  zconfig_reload (&self->config) == 0) {
-        s_server_config_self (self);
+        s_server_config_service (self);
         self->server.config = self->config;
         zsys_notice ("reloaded configuration from %s",
             zconfig_filename (self->config));
