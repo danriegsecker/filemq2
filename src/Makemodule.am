@@ -37,6 +37,14 @@ endif
 
 src_libfilemq_la_LIBADD = ${project_libs}
 
+bin_PROGRAMS += src/filemq_server
+
+src_filemq_server_CPPFLAGS = ${AM_CPPFLAGS}
+
+src_filemq_server_LDADD = ${program_libs}
+
+src_filemq_server_SOURCES = src/filemq_server.c
+
 
 check_PROGRAMS += src/filemq_selftest
 
@@ -77,6 +85,12 @@ filemq_SCRIPTS = \
 
 # define custom target for all products of /src
 src: src/libfilemq.la src/filemq_selftest
+
+# Produce generated code from models in the src directory
+code:
+	cd $(srcdir)/src; gsl -topdir:.. -script:zproto_codec_c.gsl -q fmq_msg.xml
+	cd $(srcdir)/src; gsl -topdir:.. -script:zproto_server_c.gsl -q fmq_server.xml
+	cd $(srcdir)/src; gsl -topdir:.. -script:zproto_client_c.gsl -q fmq_client.xml
 
 # Run the selftest binary under valgrind to check for memory leaks
 memcheck: src/filemq_selftest
