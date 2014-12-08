@@ -100,7 +100,7 @@ sub_new (client_t *client, const char *path, zhash_t *cache)
             size_t new_key_len = strlen (self->path) + strlen (key) + 2;
             char *new_key = (char *) calloc (new_key_len, sizeof (char));
             snprintf (new_key, new_key_len, "%s/%s", self->path, key);
-            zsys_debug ("new_key=%s", new_key);
+            zsys_debug ("sub_new: new_key=%s", new_key);
             zhash_rename (self->cache, key, new_key);
             free (new_key);
         }
@@ -132,6 +132,9 @@ sub_destroy (sub_t **self_p)
 static void
 sub_patch_add (sub_t *self, zdir_patch_t *patch)
 {
+    zsys_debug ("@@ sub_patch_add");
+    zsys_debug ("path=%s, op=%d, vpath=%s", zdir_patch_path (patch),
+        zdir_patch_op (patch), zdir_patch_vpath (patch));
     //  Skip file creation if client already has identical file
     zdir_patch_digest_set (patch);
     if (zdir_patch_op (patch) == patch_create) {
@@ -162,6 +165,10 @@ sub_patch_add (sub_t *self, zdir_patch_t *patch)
         zhash_insert (self->cache,
             zdir_patch_digest (patch), zdir_patch_vpath (patch));
     }
+
+    zsys_debug ("+++ adding following patch to client list +++");
+    zsys_debug ("path=%s, op=%d, vpath=%s", zdir_patch_path (patch),
+        zdir_patch_op (patch), zdir_patch_vpath (patch));
 
     //  Track that we've queued patch for client, so we don't do it twice
     zlist_append (self->client->patches, zdir_patch_dup (patch));
@@ -231,13 +238,17 @@ mount_refresh (mount_t *self, server_t *server)
     bool activity = false;
 
     //  Get latest snapshot and build a patches list for any changes
+    //  Load the server local path, no parent dir.
     zdir_t *latest = zdir_new (self->location, NULL);
     zsys_debug ("mount_refresh: old dir");
     zdir_print (self->dir, 2);
     zsys_debug ("mount_refresh: new dir");
     zdir_print (latest, 2);
+    //  Get list of patches using old and new dir with location as seen by
+    //  the client.
     zlist_t *patches = zdir_diff (self->dir, latest, self->alias);
 
+    //  Go through the patches just received and print information about them
     zdir_patch_t *tmppatch = (zdir_patch_t *) zlist_first (patches);
     while (tmppatch) {
         zsys_debug ("--- patch=%s, vpath=%s, op=%d", zdir_patch_path (tmppatch),
@@ -353,8 +364,23 @@ monitor_the_server (zloop_t *loop, int timer_id, void *arg)
     bool activity = false;
     mount_t *mount = (mount_t *) zlist_first (self->mounts);
     while (mount) {
+        zsys_debug ("### mount... location=%s, alias=%s", mount->location,
+            mount->alias);
+        sub_t *sub = (sub_t *) zlist_first (mount->subs);
+        while (sub) {
+            zsys_debug ("### sub... path=%s", sub->path);
+            zdir_patch_t *patch = (zdir_patch_t *) zlist_first (sub->client->patches);
+            while (patch) {
+                zsys_debug ("### path=%s, op=%d, vpath=%s", zdir_patch_path (patch),
+                    zdir_patch_op (patch), zdir_patch_vpath (patch));
+
+                patch = (zdir_patch_t *) zlist_next (sub->client->patches);
+            }
+            sub = (sub_t *) zlist_next (mount->subs);
+        }
         if (mount_refresh (mount, self))
             activity = true;
+        
         mount = (mount_t *) zlist_next (self->mounts);
     }
     if (activity)
@@ -499,13 +525,30 @@ store_client_credit (client_t *self)
 static void
 get_next_patch_for_client (client_t *self)
 {
+    zsys_debug ("@@ get_next_patch_for_client");
     //  Get next patch for client if we're not doing one already
-    if (self->patch == NULL)
+    if (self->patch == NULL) {
         self->patch = (zdir_patch_t *) zlist_pop (self->patches);
+        if (self->patch) {
+            zsys_debug ("~~~ just popped following patch ~~~");
+            zsys_debug ("path=%s, op=%d, vpath=%s",
+                zdir_patch_path (self->patch),
+                zdir_patch_op (self->patch), zdir_patch_vpath (self->patch));
+        }
+    }
+    else {
+        zsys_debug ("~~~ current patch ~~~");
+        zsys_debug ("path=%s, op=%d, vpath=%s", zdir_patch_path (self->patch),
+            zdir_patch_op (self->patch), zdir_patch_vpath (self->patch));
+    }
     if (self->patch == NULL) {
         engine_set_next_event (self, finished_event);
         return;
     }
+
+    zsys_debug ("path=%s, op=%d, vpath=%s", zdir_patch_path (self->patch),
+        zdir_patch_op (self->patch), zdir_patch_vpath (self->patch));
+
     //  Get virtual path from patch
     fmq_msg_set_filename (self->message, zdir_patch_vpath (self->patch));
 
@@ -513,6 +556,7 @@ get_next_patch_for_client (client_t *self)
     if (zdir_patch_op (self->patch) == patch_delete) {
         fmq_msg_set_sequence (self->message, self->sequence++);
         fmq_msg_set_operation (self->message, FMQ_MSG_FILE_DELETE);
+        zsys_debug ("---- send delete event -----");
         engine_set_next_event (self, send_delete_event);
 
         //  No reliability in this version, assume patch delivered safely

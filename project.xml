@@ -71,6 +71,8 @@
     <main name = "progname" private = "1">Internal tool</main>
     -->
 
+    <main name = "filemq_server">Very simple server</main>
+
     <!-- 
         Models that we build using GSL. 
         This will generate a 'make code' target to build the models.
@@ -88,6 +90,10 @@
         <param name = "root_path" value = "../main" />
     </model>
     -->
+
+    <model name = "fmq_msg" script = "zproto_codec_c.gsl" />
+    <model name = "fmq_server" script = "zproto_server_c.gsl" />
+    <model name = "fmq_client" script = "zproto_client_c.gsl" />
 
     <!-- Other source files that we need to package
     <extra name = "some_ressource" />

@@ -475,7 +475,7 @@ stayin_alive (client_t *self)
 void
 fmq_client_test (bool verbose)
 {
-    printf (" * fmq_client: ");
+    printf (" * fmq_client: \n");
     if (verbose)
         printf ("\n");
     
@@ -511,7 +511,7 @@ fmq_client_test (bool verbose)
     zstr_free (&response);
 
     //  Create the client
-    fmq_client_t *client = fmq_client_new ("ipc://@/filemq", 500);
+    fmq_client_t *client = fmq_client_new ("ipc://@/filemq", 5000);
     assert (client);
     if (verbose)
         fmq_client_verbose (client);
@@ -563,7 +563,7 @@ fmq_client_test (bool verbose)
     zfile_remove (sfile);
     zfile_destroy (&sfile);
 
-    zclock_sleep (5000);
+    zclock_sleep (3000);
 
     //  Kill the client
     fmq_client_destroy (&client);
