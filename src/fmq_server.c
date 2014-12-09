@@ -575,6 +575,7 @@ get_next_patch_for_client (client_t *self)
         zsys_debug ("~~~ current patch is delete ~~~");
         fmq_msg_set_sequence (self->message, self->sequence++);
         fmq_msg_set_operation (self->message, FMQ_MSG_FILE_DELETE);
+        fmq_msg_set_eof (self->message, 0);
 
         //  No reliability in this version, assume patch delivered safely
         zdir_patch_destroy (&self->patch);
@@ -607,6 +608,7 @@ get_next_patch_for_client (client_t *self)
             fmq_msg_set_sequence (self->message, self->sequence++);
             fmq_msg_set_operation (self->message, FMQ_MSG_FILE_CREATE);
             fmq_msg_set_offset (self->message, self->offset);
+            fmq_msg_set_eof (self->message, 0);
 
             self->offset += zchunk_size (chunk);
             self->credit -= zchunk_size (chunk);
@@ -614,6 +616,7 @@ get_next_patch_for_client (client_t *self)
             //  Zero-sized chunk means end of file
             if (zchunk_size (chunk) == 0) {
                 zsys_debug ("~~~ chunk is empty ~~~");
+                fmq_msg_set_eof (self->message, 1);
                 zfile_destroy (&self->file);
                 zdir_patch_destroy (&self->patch);
             }

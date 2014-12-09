@@ -10,7 +10,6 @@ int main (int argc, char *argv [])
     zactor_t *server = zactor_new (fmq_server, "filemq_server");
 
     //zstr_send (server, "VERBOSE");
-    //zstr_sendx (server, "PUBLISH", "./fmqserv", "/", NULL);
     zstr_sendx (server, "PUBLISH", argv [1], "/", NULL);
     zstr_sendx (server, "BIND", "tcp://*:5670", NULL);
 

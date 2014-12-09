@@ -45,6 +45,14 @@ src_filemq_server_LDADD = ${program_libs}
 
 src_filemq_server_SOURCES = src/filemq_server.c
 
+bin_PROGRAMS += src/filemq_client
+
+src_filemq_client_CPPFLAGS = ${AM_CPPFLAGS}
+
+src_filemq_client_LDADD = ${program_libs}
+
+src_filemq_client_SOURCES = src/filemq_client.c
+
 
 check_PROGRAMS += src/filemq_selftest
 

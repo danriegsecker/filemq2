@@ -51,6 +51,7 @@
     -->
 
     <main name = "filemq_server">Very simple server</main>
+    <main name = "filemq_client">Very simple client</main>
 
     <!-- 
         Models that we build using GSL. 
