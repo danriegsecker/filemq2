@@ -13,12 +13,13 @@
 
 /*
 @header
-    Description of class for man page.
+    Server class implementation of FileMQ.
 @discuss
-    Detailed discussion of the class, if any.
+    This is the server side implementation of the FileMQ protocol.
 @end
 */
 
+//  Include the zproject generated project header
 #include "filemq_classes.h"
 
 //  ---------------------------------------------------------------------------
@@ -71,6 +72,7 @@ struct _client_t {
 
 //  ---------------------------------------------------------------------------
 //  Subscription object
+//
 
 struct _sub_t {
     client_t *client;           //  Always refers to live client
@@ -79,7 +81,8 @@ struct _sub_t {
 };
 
 //  --------------------------------------------------------------------------
-//  Constructor
+//  Constructor for the sub (a.k.a. subscription) class
+//
 
 static sub_t *
 sub_new (client_t *client, const char *path, zhash_t *cache)
@@ -109,7 +112,8 @@ sub_new (client_t *client, const char *path, zhash_t *cache)
 }
 
 //  --------------------------------------------------------------------------
-//  Destructor
+//  Destructor for the sub (a.k.a subscription) class
+//
 
 static void
 sub_destroy (sub_t **self_p)
@@ -127,14 +131,18 @@ sub_destroy (sub_t **self_p)
 
 //  --------------------------------------------------------------------------
 //  Add patch to sub client patches list
+//
 
 static void
 sub_patch_add (sub_t *self, zdir_patch_t *patch)
 {
-    zsys_debug ("@@ sub_patch_add");
+    //  Debug print where we are and information on the incoming patch
+    zsys_debug ("@@ sub_patch_add, incoming patch info below");
     zsys_debug ("path=%s, op=%d, vpath=%s", zdir_patch_path (patch),
         zdir_patch_op (patch), zdir_patch_vpath (patch));
+
     //  Skip file creation if client already has identical file
+    //  Populate the digest for the associated patch
     zdir_patch_digest_set (patch);
     if (zdir_patch_op (patch) == patch_create) {
         char *digest = (char *) zhash_lookup (self->cache,
@@ -169,36 +177,20 @@ sub_patch_add (sub_t *self, zdir_patch_t *patch)
     zsys_debug ("path=%s, op=%d, vpath=%s", zdir_patch_path (patch),
         zdir_patch_op (patch), zdir_patch_vpath (patch));
 
-    zfile_t *tmpf = zdir_patch_file (patch);
-    if (tmpf)
-        zsys_debug ("+++ patch has file +++");
-    else
-        zsys_debug ("+++ patch has NO file +++");
-
     //  Track that we've queued patch for client, so we don't do it twice
     zdir_patch_t *patch_add = zdir_patch_dup (patch);
     if (patch_add) {
         int rc = zlist_append (self->client->patches, (void *) patch_add);
         if (rc != 0)
-            zsys_error ("+++ unable to append new patch +++");
-        zsys_debug ("+++ patch append returned %d +++", rc);
-        zsys_debug ("+++ listing client patches +++");
-        zdir_patch_t *temp = (zdir_patch_t *) zlist_first (self->client->patches);
-        while (temp) {
-            zsys_debug ("++++ path=%s, op=%d, vpath=%s", zdir_patch_path (temp),
-                zdir_patch_op (temp), zdir_patch_vpath (temp));
-            temp = (zdir_patch_t *) zlist_next (self->client->patches);
-        }
+            zsys_error ("unable to append new patch +++");
     }
     else
-        zsys_error ("+++ unable to duplicate patch");
-
-    if (!patch)
-        zsys_info ("patch became null");
+        zsys_error ("unable to duplicate patch");
 }
 
 //  --------------------------------------------------------------------------
 //  Mount point in memory
+//
 
 struct _mount_t {
     char *location;         //  Physical location
@@ -208,8 +200,9 @@ struct _mount_t {
 };
 
 //  --------------------------------------------------------------------------
-//  Constructor
+//  Constructor for the mount class
 //  Loads directory tree if possible
+//
 
 static mount_t *
 mount_new (char *location, char *alias)
@@ -228,7 +221,8 @@ mount_new (char *location, char *alias)
 
 
 //  --------------------------------------------------------------------------
-//  Destructor
+//  Destructor for the mount class
+//
 
 static void
 mount_destroy (mount_t **self_p)
@@ -253,6 +247,7 @@ mount_destroy (mount_t **self_p)
 
 //  --------------------------------------------------------------------------
 //  Reloads directory tree and returns true if activity, false if the same
+//
 
 static bool
 mount_refresh (mount_t *self, server_t *server)
@@ -309,6 +304,7 @@ mount_refresh (mount_t *self, server_t *server)
 
 //  --------------------------------------------------------------------------
 //  Store subscription for mount point
+//
 
 static void
 mount_sub_store (mount_t *self, client_t *client, fmq_msg_t *request)
@@ -363,6 +359,7 @@ mount_sub_store (mount_t *self, client_t *client, fmq_msg_t *request)
 
 //  --------------------------------------------------------------------------
 //  Purge subscriptions for a specified client
+//
 
 static void
 mount_sub_purge (mount_t *self, client_t *client)
@@ -380,6 +377,10 @@ mount_sub_purge (mount_t *self, client_t *client)
     }
 }
 
+//  ---------------------------------------------------------------------------
+//  Monitor the servers published directories for changes
+//
+
 static int
 monitor_the_server (zloop_t *loop, int timer_id, void *arg)
 {
@@ -387,28 +388,8 @@ monitor_the_server (zloop_t *loop, int timer_id, void *arg)
     bool activity = false;
     mount_t *mount = (mount_t *) zlist_first (self->mounts);
     while (mount) {
-        zsys_debug ("### mount... location=%s, alias=%s", mount->location,
-            mount->alias);
-        sub_t *sub = (sub_t *) zlist_first (mount->subs);
-        while (sub) {
-            zsys_debug ("#### sub... path=%s", sub->path);
-            if (!zlist_size (sub->client->patches))
-                zsys_debug ("##### no client patches");
-            else {
-                zdir_patch_t *patch = (zdir_patch_t *) zlist_first (sub->client->patches);
-                while (patch) {
-                    zsys_debug ("##### path=%s, op=%d, vpath=%s",
-                        zdir_patch_path (patch),
-                        zdir_patch_op (patch), zdir_patch_vpath (patch));
-
-                    patch = (zdir_patch_t *) zlist_next (sub->client->patches);
-                }
-            }
-            sub = (sub_t *) zlist_next (mount->subs);
-        }
         if (mount_refresh (mount, self))
             activity = true;
-        
         mount = (mount_t *) zlist_next (self->mounts);
     }
     if (activity)
@@ -417,8 +398,10 @@ monitor_the_server (zloop_t *loop, int timer_id, void *arg)
     return 0;
 }
 
+//  ---------------------------------------------------------------------------
 //  Allocate properties and structures for a new server instance.
 //  Return 0 if OK, or -1 if there was an error.
+//
 
 static int
 server_initialize (server_t *self)
@@ -432,7 +415,9 @@ server_initialize (server_t *self)
     return 0;
 }
 
+//  ---------------------------------------------------------------------------
 //  Free properties and structures for a server instance
+//
 
 static void
 server_terminate (server_t *self)
@@ -446,7 +431,9 @@ server_terminate (server_t *self)
     zlist_destroy (&self->mounts);
 }
 
+//  ---------------------------------------------------------------------------
 //  Process server API method, return reply message if any
+//
 
 static zmsg_t *
 server_method (server_t *self, const char *method, zmsg_t *msg)
@@ -471,8 +458,10 @@ server_method (server_t *self, const char *method, zmsg_t *msg)
 }
 
 
+//  ---------------------------------------------------------------------------
 //  Allocate properties and structures for a new client connection and
 //  optionally engine_set_next_event (). Return 0 if OK, or -1 on error.
+//
 
 static int
 client_initialize (client_t *self)
@@ -482,7 +471,9 @@ client_initialize (client_t *self)
     return 0;
 }
 
+//  ---------------------------------------------------------------------------
 //  Free properties and structures for a client connection
+//
 
 static void
 client_terminate (client_t *self)
@@ -685,6 +676,7 @@ handle_client_finished (client_t *self)
 
 //  ---------------------------------------------------------------------------
 //  Selftest
+//
 
 void
 fmq_server_test (bool verbose)

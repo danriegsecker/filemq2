@@ -1,24 +1,3 @@
-<!-- 
-    The project.xml generates build environments for:
-
-        * android
-        * autotool
-        * cmake
-        * mingw32
-        * vs2008
-        * vs2010
-        * vs2012
-        * vs2013
-
-    Classes are automatically added to all build environments. Further as you
-    add new classes to your project you can generate skeleton header and source 
-    files according to http://rfc.zeromq.org/spec:21.
-
-    name := The name of your project
-    description := A short description for your project
-    script := The gsl script to generate all the stuff !!! DO NOT CHANGE !!!
-    email := The email address where to reach you project e.g. mailinglist.
--->
 <project
     name = "filemq"
     description = "An updated attempt at FileMQ."
@@ -95,37 +74,4 @@
     <model name = "fmq_server" script = "zproto_server_c.gsl" />
     <model name = "fmq_client" script = "zproto_client_c.gsl" />
 
-    <!-- Other source files that we need to package
-    <extra name = "some_ressource" />
-    -->
-
-    <!-- 
-        Stuff that needs to be installed:
-        
-        * Linux -> /usr/local/bin
-    -->
-    <bin name = "zproject.gsl" />
-    <bin name = "zproject_projects.gsl" />
-    <bin name = "zproject_known_projects.xml" />
-    <bin name = "zproject_class_api.gsl" />
-    <bin name = "zproject_mkman" />
-    
-    <bin name = "zproject_android.gsl" />
-    <bin name = "zproject_autoconf.gsl" />
-    <bin name = "zproject_automake.gsl" />
-    <bin name = "zproject_bindings_qml.gsl" />
-    <bin name = "zproject_bindings_ruby.gsl" />
-    <bin name = "zproject_ci.gsl" />
-    <bin name = "zproject_class.gsl" />
-    <bin name = "zproject_cmake.gsl" />
-    <bin name = "zproject_docs.gsl" />
-    <bin name = "zproject_git.gsl" />
-    <bin name = "zproject_lib.gsl" />
-    <bin name = "zproject_mingw32.gsl" />
-    <bin name = "zproject_qt_android.gsl" />
-    <bin name = "zproject_tools.gsl" />
-    <bin name = "zproject_vs2008.gsl" />
-    <bin name = "zproject_vs2010.gsl" />
-    <bin name = "zproject_vs2012.gsl" />
-    <bin name = "zproject_vs2013.gsl" />
 </project>

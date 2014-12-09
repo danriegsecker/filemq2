@@ -1430,6 +1430,18 @@ fmq_client_verbose (fmq_client_t *self)
 
 
 //  ---------------------------------------------------------------------------
+//  Return actor, when caller wants to work with multiple actors and/or
+//  input sockets asynchronously.
+
+zactor_t *
+fmq_client_actor (fmq_client_t *self)
+{
+    assert (self);
+    return self->actor;
+}
+
+
+//  ---------------------------------------------------------------------------
 //  Return message pipe for asynchronous message I/O. In the high-volume case,
 //  we send methods and get replies to the actor, in a synchronous manner, and
 //  we send/recv high volume message data to a second pipe, the msgpipe. In
@@ -1454,10 +1466,10 @@ static int
 s_accept_reply (fmq_client_t *self, ...)
 {
     assert (self);
-    while (true) {
+    while (!zsys_interrupted) {
         char *reply = zstr_recv (self->actor);
         if (!reply)
-            return -1;          //  Interrupted or timed-out
+            break;              //  Interrupted or timed-out
         
         va_list args;
         va_start (args, self);
@@ -1484,6 +1496,7 @@ s_accept_reply (fmq_client_t *self, ...)
             return 0;           //  We matched one of the filters
         }
     }
+    return -1;          //  Interrupted or timed-out
 }
 
 
