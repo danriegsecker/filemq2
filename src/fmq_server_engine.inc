@@ -113,7 +113,7 @@ typedef struct {
     int wakeup;                 //  zloop timer for client alarms
     void *ticket;               //  zloop ticket for client timeouts
     event_t wakeup_event;       //  Wake up with this event
-    char log_prefix [41];       //  Log prefix string
+    char log_prefix [48];       //  Log prefix string
 } s_client_t;
 
 static int
